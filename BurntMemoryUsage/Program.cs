@@ -56,13 +56,13 @@ out IntPtr pSecurityDescriptor);
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Console.WriteLine("Hello World! This is a dumb program for testing random shit as I code the rest of BurntMemory");
             BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
             mem.ProcessToAttach = "notepad";
             mem.AttachAndVerify();
             IntPtr AddressToWrite = BurntMemory.ReadWrite.ResolveAddress("main", new int[] { 0x4E });
             uint value = 0xFFFFFFFF;
-            WriteProcessMemory(mem.GlobalProcessHandle, AddressToWrite, BitConverter.GetBytes(value), 4, out int bytesWritten);
+            //WriteProcessMemory(mem.GlobalProcessHandle, AddressToWrite, BitConverter.GetBytes(value), 4, out int bytesWritten);
 
 
             Stopwatch stopwatch = new Stopwatch();

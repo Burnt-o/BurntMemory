@@ -11,7 +11,7 @@ namespace BurntMemory
     {
 
         //Singleton pattern
-        private static readonly AttachState instance = new AttachState();
+        private static readonly AttachState instance = new();
         private AttachState() { 
         //constructor
         }
@@ -22,42 +22,20 @@ namespace BurntMemory
         }
 
 
-
-
-
-
-
-
         //for reading/writing from process memory
         [DllImport("kernel32.dll")]
         private static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
         private const int PROCESS_ALL_ACCESS = 0x1F0FFF;
-        private const int PROCESS_VM_WRITE = 0x0020;
 
-
-
-
-
-        //a test property that will be removed later
+        //a test property that I may remove later
         public bool Attached
         { 
         get { return attached; }    
         }
 
-
-
-
-
-
-
-
-
-
-       
-
-
-        private string _processToAttach;
-        public string ProcessToAttach
+        //name of process to attach to
+        private string? _processToAttach;
+        public string? ProcessToAttach
         {
             get { return _processToAttach; }
             set { _processToAttach = value; }
@@ -65,20 +43,20 @@ namespace BurntMemory
 
         private Int32? ProcessID = null;
 
-        //ReadWrite will use this 
-        public IntPtr GlobalProcessHandle;
-        private Process Process;
+        //ReadWrite will use this.. a lot
+        public IntPtr? GlobalProcessHandle;
 
+        private Process? Process;
 
-        public Dictionary<string, IntPtr> modules = new Dictionary<string, IntPtr>();
+        //list of process modules and their base addresses. the main module is stored under key "main".
+        public Dictionary<string, IntPtr> modules = new();
 
 
         private bool attached = false;
-        private bool Attach()
+        private bool Attach() //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
 
-            //need to rewrite this
-            Console.WriteLine("trying to attach");
+            //TODO: clean this up a bunch to handle errors and whatnot
 
             IntPtr processHandle;
 
@@ -105,10 +83,7 @@ namespace BurntMemory
 
 
 
-
-
-        //may make private
-        private bool VerifyAttached()
+        private bool VerifyAttached() //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {           
             //check if we ever grabbed a processID
             if (ProcessID == null)
@@ -124,7 +99,7 @@ namespace BurntMemory
 
         
 
-        public bool AttachAndVerify()
+        public bool AttachAndVerify() //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
             //Verifies attachment, if false it attempts to attach, then verifies again
 
@@ -138,7 +113,8 @@ namespace BurntMemory
         }
 
 
-        public bool EvaluateModuleAddress(string modulename)
+        //TODO: probably going to make this private later. This is not it's final form in any case. Also I haven't tested it.
+        public bool EvaluateModuleAddress(string modulename) //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
             ProcessModuleCollection allmodules = Process.Modules;
 

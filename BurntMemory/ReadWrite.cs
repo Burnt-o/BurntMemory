@@ -19,29 +19,27 @@ namespace BurntMemory
 
         //for reading/writing from process memory
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
-        [DllImport("kernel32.dll")]
         public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, out int lpNumberOfBytesRead);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, out int lpNumberOfBytesWritten);
 
-        private const int PROCESS_WM_READ = 0x0010;
-        private const int PROCESS_ALL_ACCESS = 0x1F0FFF;
-
-
+        //needed to write to protected memory (executable code)
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress,
   int dwSize, uint flNewProtect, out uint lpflOldProtect);
         private const int PAGE_READWRITE = 0x40;
 
-
+        //TODO: double check this makes sense with multi level pointers
         public static IntPtr ResolveAddress(string modulename, int[] offsets)
         {
             IntPtr baseAddress = AttachState.modules[modulename];
             return ResolveAddress(baseAddress, offsets);
         }
 
+        //TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
+        //TODO: should probably make the incomming baseaddress nullable?
+        //TODO: test multi-level pointers
         public static IntPtr ResolveAddress(IntPtr baseAddress, int[] offsets)
         {
             IntPtr ptr = baseAddress;
@@ -49,7 +47,7 @@ namespace BurntMemory
             if (offsets == null)
                 return ptr;
 
-            ptr = ptr + offsets[0];
+            ptr += offsets[0];
             if (offsets.Length == 1)
                 return ptr;
 
@@ -73,9 +71,9 @@ namespace BurntMemory
 
                 ptr = (IntPtr.Size == 4)
                 ? IntPtr.Add(new IntPtr((ReadInteger(ptr).GetValueOrDefault())), i)
-                : ptr = IntPtr.Add(new IntPtr((ReadQword(ptr).GetValueOrDefault())), i);
+                : ptr = IntPtr.Add(new IntPtr((long)ReadQword(ptr).GetValueOrDefault()), i);
+                //here's a question- why do IntPtrs use signed ints instead of unsigned? and will that cause issues?
 
-                //TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
             }
 
 
@@ -89,70 +87,115 @@ namespace BurntMemory
 
 
 
-
-        public static UInt32? ReadInteger(IntPtr addy)
+        
+        public static UInt32? ReadInteger(IntPtr? addy)
         {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return null;
+
             byte[] data = new byte[4];
-            return (ReadProcessMemory(AttachState.GlobalProcessHandle, addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
+            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
         }
 
-        public static Int64? ReadQword(IntPtr addy)
+        public static UInt64? ReadQword(IntPtr? addy)
         {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return null;
+
             byte[] data = new byte[8];
-            return (ReadProcessMemory(AttachState.GlobalProcessHandle, addy, data, 8, out int bytesRead)) ? BitConverter.ToInt64(data, 0) : null;
+            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 8, out int bytesRead)) ? (ulong)BitConverter.ToInt64(data, 0) : null;
         }
 
-        public static byte[]? ReadBytes(IntPtr addy, uint length = 1)
+        public static byte[]? ReadBytes(IntPtr? addy, uint length = 1)
         {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return null;
             byte[]? data = new byte[length];
-            return (ReadProcessMemory(AttachState.GlobalProcessHandle, addy, data, data.Length, out int bytesRead)) ? data : null;
+            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? data : null;
         }
 
-        
-        public static string? ReadString(IntPtr addy, uint length) //TODO: add a unicode option
+        //TODO: add a unicode option
+        public static string? ReadString(IntPtr? addy, uint length) 
         {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return null;
             byte[] data = new byte[length];
-            return (ReadProcessMemory(AttachState.GlobalProcessHandle, addy, data, data.Length, out int bytesRead)) ? ASCIIEncoding.ASCII.GetString(data) : null;
+            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? ASCIIEncoding.ASCII.GetString(data) : null;
         }
 
 
-        
-        public static bool WriteInteger(IntPtr addy, UInt32 value, bool isProtected)
+        //TODO: instead of just having a success boolean, we should instead return error codes (zero if no error)
+        public static bool WriteInteger(IntPtr? addy, UInt32 value, bool isProtected)
         {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return false;
+
             bool success;
             if (isProtected)
             {
-                VirtualProtectEx(AttachState.GlobalProcessHandle, addy, 4, PAGE_READWRITE, out uint lpflOldProtect);
-                success = WriteProcessMemory(AttachState.GlobalProcessHandle, addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
-                VirtualProtectEx(AttachState.GlobalProcessHandle, addy, 4, lpflOldProtect, out uint lpflOldProtect2);
+                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 4, PAGE_READWRITE, out uint lpflOldProtect);
+                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = WriteProcessMemory(AttachState.GlobalProcessHandle, addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
             }
 
             return success;
         }
 
-        
-
-        public static bool WriteBytes(IntPtr addy, byte[] value, bool isProtected)
+        public static bool WriteQword(IntPtr? addy, UInt64 value, bool isProtected)
         {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return false;
+
             bool success;
             if (isProtected)
             {
-                VirtualProtectEx(AttachState.GlobalProcessHandle, addy, value.Length, PAGE_READWRITE, out uint lpflOldProtect);
-                success = WriteProcessMemory(AttachState.GlobalProcessHandle, addy, value, value.Length, out int bytesWritten);
-                VirtualProtectEx(AttachState.GlobalProcessHandle, addy, value.Length, lpflOldProtect, out uint lpflOldProtect2);
+                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 8, PAGE_READWRITE, out uint lpflOldProtect);
+                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = WriteProcessMemory(AttachState.GlobalProcessHandle, addy, value, value.Length, out int bytesWritten);
+                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
             }
 
             return success;
         }
 
+
+
+        public static bool WriteBytes(IntPtr? addy, byte[] value, bool isProtected)
+        {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return false;
+
+            bool success;
+            if (isProtected)
+            {
+                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value.Length, PAGE_READWRITE, out uint lpflOldProtect);
+                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
+                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value.Length, lpflOldProtect, out uint lpflOldProtect2);
+            }
+            else
+            {
+                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
+            }
+
+            return success;
+        }
+
+        //TODO: add a unicode option
+        public static bool WriteString(IntPtr? addy, string stringtowrite, bool isProtected)
+        {
+            if (addy == null || AttachState.GlobalProcessHandle == null)
+                return false;
+
+            byte[] value = Encoding.ASCII.GetBytes(stringtowrite);
+            return WriteBytes(addy, value, isProtected);
+        }
 
 
 
