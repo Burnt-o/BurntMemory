@@ -3,15 +3,15 @@
   <Class Name="BurntMemory.ReadWrite">
     <Position X="8" Y="2.25" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAEAEAAAEAAAAAIBAAAUBAAgAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAAAEEAgEAAAQAcBAAAUAEAAAAAAACAgA=</HashCode>
       <FileName>ReadWrite.cs</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="ExtensionMethods.MyExtensions">
-    <Position X="12" Y="3" Width="1.5" />
+  <Class Name="BurntMemory.Debugger">
+    <Position X="10.5" Y="2.25" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAA=</HashCode>
-      <FileName>ExtensionMethods.cs</FileName>
+      <HashCode>AAAAAAAAAAAAQAAAAAAAAAQBAAAAAAAAAAAAAAAAAgA=</HashCode>
+      <FileName>Debugger.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Font Name="Segoe UI" Size="9" />

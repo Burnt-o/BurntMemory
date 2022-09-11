@@ -22,10 +22,7 @@ namespace BurntMemory
         }
 
 
-        //for reading/writing from process memory
-        [DllImport("kernel32.dll")]
-        private static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
-        private const int PROCESS_ALL_ACCESS = 0x1F0FFF;
+
 
         //a test property that I may remove later
         public bool Attached
@@ -41,7 +38,7 @@ namespace BurntMemory
             set { _processToAttach = value; }
         }
 
-        private Int32? ProcessID = null;
+        public Int32? ProcessID = null;
 
         //ReadWrite will use this.. a lot
         public IntPtr? GlobalProcessHandle;
@@ -67,7 +64,7 @@ namespace BurntMemory
 
 
             ProcessID = Process.Id;
-            processHandle = OpenProcess(PROCESS_ALL_ACCESS, false, Process.Id);
+            processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, Process.Id);
 
             GlobalProcessHandle = processHandle;
             attached = true;

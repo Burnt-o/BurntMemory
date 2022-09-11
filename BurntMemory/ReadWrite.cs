@@ -10,7 +10,7 @@ namespace BurntMemory
 {
     public static class ReadWrite
     {
-
+        //TODO: do I need this?
         public static AttachState AttachState
             {
             get { return BurntMemory.AttachState.Instance; }
@@ -18,17 +18,7 @@ namespace BurntMemory
         }
 
         //for reading/writing from process memory
-        [DllImport("kernel32.dll")]
-        public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, out int lpNumberOfBytesRead);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, out int lpNumberOfBytesWritten);
-
-        //needed to write to protected memory (executable code)
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress,
-  int dwSize, uint flNewProtect, out uint lpflOldProtect);
-        private const int PAGE_READWRITE = 0x40;
+       
 
         //TODO: double check this makes sense with multi level pointers
         public static IntPtr ResolveAddress(string modulename, int[] offsets)
@@ -94,7 +84,7 @@ namespace BurntMemory
                 return null;
 
             byte[] data = new byte[4];
-            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
         }
 
         public static UInt64? ReadQword(IntPtr? addy)
@@ -103,7 +93,7 @@ namespace BurntMemory
                 return null;
 
             byte[] data = new byte[8];
-            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 8, out int bytesRead)) ? (ulong)BitConverter.ToInt64(data, 0) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 8, out int bytesRead)) ? (ulong)BitConverter.ToInt64(data, 0) : null;
         }
 
         public static byte[]? ReadBytes(IntPtr? addy, uint length = 1)
@@ -111,7 +101,7 @@ namespace BurntMemory
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
             byte[]? data = new byte[length];
-            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? data : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? data : null;
         }
 
         //TODO: add a unicode option
@@ -120,7 +110,7 @@ namespace BurntMemory
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
             byte[] data = new byte[length];
-            return (ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? ASCIIEncoding.ASCII.GetString(data) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? ASCIIEncoding.ASCII.GetString(data) : null;
         }
 
 
@@ -133,13 +123,13 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 4, PAGE_READWRITE, out uint lpflOldProtect);
-                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
-                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 4, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
             }
 
             return success;
@@ -153,13 +143,13 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 8, PAGE_READWRITE, out uint lpflOldProtect);
-                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
-                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 8, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
             }
 
             return success;
@@ -175,13 +165,13 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value.Length, PAGE_READWRITE, out uint lpflOldProtect);
-                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
-                VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value.Length, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value.Length, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value.Length, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
             }
 
             return success;
