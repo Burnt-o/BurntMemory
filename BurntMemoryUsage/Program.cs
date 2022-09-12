@@ -68,7 +68,7 @@ out IntPtr pSecurityDescriptor);
             Console.WriteLine("test: " + test);
             //WriteProcessMemory(mem.GlobalProcessHandle, AddressToWrite, BitConverter.GetBytes(value), 4, out int bytesWritten);
 
-            IntPtr AddressToBreakpoint = BurntMemory.ReadWrite.ResolveAddress("halo1", new int[] { 0xC047a7 });
+            IntPtr AddressToBreakpoint = BurntMemory.ReadWrite.ResolveAddress("halo1", new int[] { 0xC540B5 });
             BurntMemory.Debugger.Instance.SetBreakpoint(AddressToBreakpoint);
            
 
@@ -77,7 +77,12 @@ out IntPtr pSecurityDescriptor);
             Console.WriteLine(Marshal.GetLastWin32Error());
             Console.ReadKey();
 
+
+            //BurntMemory.Debugger.Instance.CloseGracefully();
+
         }
+
+
 
         static void StopwatchShit()
         {

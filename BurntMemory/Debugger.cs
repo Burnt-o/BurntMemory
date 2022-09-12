@@ -5,7 +5,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 
 namespace BurntMemory
@@ -17,8 +16,8 @@ namespace BurntMemory
         {
             //constructor
             Console.WriteLine("Running debugger constructor");
-            Thread t = new Thread(new ThreadStart(DebugThread));
-            t.Start();
+            _DebugThread = new Thread(new ThreadStart(DebugThread));
+            _DebugThread.Start();
 
         }
 
@@ -43,15 +42,17 @@ namespace BurntMemory
         {
             public IntPtr Address;
             public int function;
+            public byte originalCode;
 
-            public Breakpoint(IntPtr Address, int function)
+            public Breakpoint(IntPtr Address, int function, byte originalCode)
             {
                 this.Address = Address;
                 this.function = function;
+                this.originalCode = originalCode;
             }
         }
 
-        private Breakpoint[] _BreakpointList = new Breakpoint[0];
+        private static Breakpoint[] _BreakpointList = new Breakpoint[0];
 
 
         private static bool _IsProcessDebugged;
@@ -82,12 +83,17 @@ namespace BurntMemory
             pinnedArray.Free();
             return intPtr;
         }
+        private Thread _DebugThread;
 
         static void DebugThread()
         {
             Console.WriteLine("Hello from DebugThread");
             while (true)
             {
+  
+
+
+
                 if (!_KeepDebugging)
                 {
                     if (_StopDebugging)
@@ -110,17 +116,16 @@ namespace BurntMemory
                     //Setup stuff
                     _StartDebugging = false;
                         Console.WriteLine("Starting debugging");
-                        try { PInvokes.DebugActiveProcess((uint)AttachState.ProcessID); }
+                        try { PInvokes.DebugActiveProcess((uint)AttachState.ProcessID);
+                            PInvokes.DebugSetProcessKillOnExit(false);
+                        }
                         catch { _KeepDebugging = false; _StopDebugging = true; Console.WriteLine("Somethings gone horrible wrong on DebugActiveProcess" + AttachState.ProcessID.ToString() + " " + PInvokes.GetLastError().ToString()); } //TODO: figure out error handling here.
                         
                     }
 
                     //main debug thread loop logic:
-                    //none of this is tested yet.
-                    //But the logic as it is right now is to catch ALL exception_debug_events.
-                    //Later we'll add a check for if the debug event is at a location described in our breakpointlist.
 
-                    Console.WriteLine("yep in main debug thread loop");
+                    //Console.WriteLine("yep in main debug thread loop");
 
                     IntPtr debugEventPtr = Marshal.AllocHGlobal(188);
                     bool bb = PInvokes.WaitForDebugEvent(debugEventPtr, 1000);
@@ -174,11 +179,60 @@ namespace BurntMemory
                                     Console.WriteLine("Handle other exceptions.");
                                     break;
                             }
+
+                            //testing getting thread context (registers etc)
+
+
+                            //hey that actually worked.
+                            //now to SetThreadContext ie change registers 
+                            if (_BreakpointList != null && _BreakpointList.Length > 0  && ExceptionDebugInfo.ExceptionRecord.ExceptionAddress == _BreakpointList[0].Address)
+                            {
+                                PInvokes.CONTEXT64 context64 = new PInvokes.CONTEXT64();
+                                context64.ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_CONTROL;
+
+                                IntPtr hThread = PInvokes.OpenThread(PInvokes.GET_CONTEXT, false, DebugEvent.dwThreadId);
+                                if (PInvokes.GetThreadContext(hThread, ref context64))
+                                {
+                                    Console.WriteLine("Rbp    : {0}", context64.Rbp);
+                                    Console.WriteLine("Rcx    : {0}", context64.Rcx);
+                                    Console.WriteLine("Rip    : {0}", context64.Rip);
+                                    Console.WriteLine("SegCs  : {0}", context64.SegCs);
+                                    Console.WriteLine("EFlags : {0}", context64.EFlags);
+                                    Console.WriteLine("Rsp    : {0}", context64.Rsp);
+                                    Console.WriteLine("SegSs  : {0}", context64.SegSs);
+                                }
+
+
+                                Console.WriteLine("Setting rcx to 0");
+                                context64.Rcx = 0;
+
+                                ReadWrite.WriteBytes(_BreakpointList[0].Address, (new byte[] { _BreakpointList[0].originalCode }), true);
+                                PInvokes.SetThreadContext(hThread, ref context64);
+
+                                Debugger.Instance.RemoveBreakpoint(_BreakpointList[0].Address);
+                                PInvokes.ResumeThread(hThread);
+                                PInvokes.CloseHandle(hThread);
+
+
+                            }
+
+                            
+                           
+
                         }
                         // Resume executing the thread that reported the debugging event. 
+
+
+                        //maybe we also need to increment the RIP
+
                         bool bb1 = PInvokes.ContinueDebugEvent((uint)DebugEvent.dwProcessId,
                                     (uint)DebugEvent.dwThreadId,
                                     dwContinueDebugEvent);
+                        Console.WriteLine("returnning execution at thread ID: " + DebugEvent.dwThreadId);
+
+                        
+
+
 
                     }
                     if (debugEventPtr != null)
@@ -187,7 +241,8 @@ namespace BurntMemory
             
             
             }
-            
+            //if (AttachState.ProcessID != null)
+            //PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID);
         }
 
         
@@ -233,8 +288,13 @@ namespace BurntMemory
             if (alreadyset)
                 throw new RPMException("Tried to SetBreakpoint but that breakpoint was already set!");
 
-            _BreakpointList.Append(new Breakpoint(addy, 0));
+            byte[] originalCode = ReadWrite.ReadBytes(addy);
+            _BreakpointList.Append(new Breakpoint(addy, 0, originalCode[0]));
             Console.WriteLine("Appended");
+
+            ReadWrite.WriteBytes(addy, new byte[] { 0xCC }, true);
+            
+            
             EvaluateBreakpointList();
         }
 
@@ -249,7 +309,16 @@ namespace BurntMemory
         }
 
 
+        private static bool _CloseDebugger = false;
+        public void CloseGracefully()
+        {
+            Console.WriteLine("aborting debug thread");
+            _CloseDebugger = true;
+            Thread.Sleep(2000);
+            _DebugThread.Abort();
 
+
+        }
 
 
     }
