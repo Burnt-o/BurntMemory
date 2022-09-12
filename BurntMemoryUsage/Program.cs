@@ -54,24 +54,41 @@ out IntPtr pSecurityDescriptor);
             SACL_SECURITY_INFORMATION = 8,
         }
 
+
+
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World! This is a dumb program for testing random shit as I code the rest of BurntMemory");
             BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
-            mem.ProcessToAttach = "notepad";
+            mem.ProcessToAttach = "MCC-Win64-Shipping";
             mem.AttachAndVerify();
-            IntPtr AddressToWrite = BurntMemory.ReadWrite.ResolveAddress("main", new int[] { 0x4E });
-            uint value = 0xFFFFFFFF;
+            mem.EvaluateModuleAddress("halo1");
+            IntPtr Address = BurntMemory.ReadWrite.ResolveAddress("halo1", new int[] { 0x4E });
+            string test = BurntMemory.ReadWrite.ReadString(Address, 4);
+            Console.WriteLine("test: " + test);
             //WriteProcessMemory(mem.GlobalProcessHandle, AddressToWrite, BitConverter.GetBytes(value), 4, out int bytesWritten);
 
+            IntPtr AddressToBreakpoint = BurntMemory.ReadWrite.ResolveAddress("halo1", new int[] { 0xC047a7 });
+            BurntMemory.Debugger.Instance.SetBreakpoint(AddressToBreakpoint);
+           
 
+
+
+            Console.WriteLine(Marshal.GetLastWin32Error());
+            Console.ReadKey();
+
+        }
+
+        static void StopwatchShit()
+        {
+            IntPtr AddressToWrite = BurntMemory.ReadWrite.ResolveAddress("main", new int[] { 0x4E });
             Stopwatch stopwatch = new Stopwatch();
             uint? data = 0;
             bool success;
             stopwatch.Start();
             for (int i = 0; i < 100000; i++)
             {
-               data = BurntMemory.ReadWrite.ReadInteger(AddressToWrite);
+                data = BurntMemory.ReadWrite.ReadInteger(AddressToWrite);
             }
             stopwatch.Stop();
 
@@ -81,7 +98,7 @@ out IntPtr pSecurityDescriptor);
             stopwatch.Start();
             for (int i = 0; i < 100000; i++)
             {
-                success  = BurntMemory.ReadWrite.WriteInteger(AddressToWrite, 0xFFFFFFF, true);
+                success = BurntMemory.ReadWrite.WriteInteger(AddressToWrite, 0xFFFFFFF, true);
             }
             stopwatch.Stop();
 
@@ -100,12 +117,7 @@ out IntPtr pSecurityDescriptor);
             Console.WriteLine("Test 4: Elapsed Time is {0} ms", stopwatch.ElapsedMilliseconds);
 
 
-
-
-
-            Console.WriteLine(Marshal.GetLastWin32Error());
-            Console.ReadKey();
-
         }
+
     }
 }

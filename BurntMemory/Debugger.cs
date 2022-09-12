@@ -12,6 +12,16 @@ namespace BurntMemory
 {
     public sealed class Debugger
     {
+
+        private Debugger()
+        {
+            //constructor
+            Console.WriteLine("Running debugger constructor");
+            Thread t = new Thread(new ThreadStart(DebugThread));
+            t.Start();
+
+        }
+
         //Singleton pattern
         private static readonly Debugger instance = new();
 
@@ -73,8 +83,9 @@ namespace BurntMemory
             return intPtr;
         }
 
-        static void DebugThread(object parameter)
+        static void DebugThread()
         {
+            Console.WriteLine("Hello from DebugThread");
             while (true)
             {
                 if (!_KeepDebugging)
@@ -98,7 +109,7 @@ namespace BurntMemory
                     { 
                     //Setup stuff
                     _StartDebugging = false;
-
+                        Console.WriteLine("Starting debugging");
                         try { PInvokes.DebugActiveProcess((uint)AttachState.ProcessID); }
                         catch { _KeepDebugging = false; _StopDebugging = true; Console.WriteLine("Somethings gone horrible wrong on DebugActiveProcess" + AttachState.ProcessID.ToString() + " " + PInvokes.GetLastError().ToString()); } //TODO: figure out error handling here.
                         
@@ -108,6 +119,8 @@ namespace BurntMemory
                     //none of this is tested yet.
                     //But the logic as it is right now is to catch ALL exception_debug_events.
                     //Later we'll add a check for if the debug event is at a location described in our breakpointlist.
+
+                    Console.WriteLine("yep in main debug thread loop");
 
                     IntPtr debugEventPtr = Marshal.AllocHGlobal(188);
                     bool bb = PInvokes.WaitForDebugEvent(debugEventPtr, 1000);
@@ -177,12 +190,7 @@ namespace BurntMemory
             
         }
 
-        private Debugger()
-        {
-            //constructor
-            Thread t = new Thread(new ParameterizedThreadStart(DebugThread));
-
-        }
+        
 
         private void EvaluateBreakpointList()
         {
@@ -190,7 +198,7 @@ namespace BurntMemory
             {
                 _KeepDebugging = true;
                 _StartDebugging = true;
-
+                Console.WriteLine("Setting _StartDebugging to true");
             }
             else
             {
@@ -204,6 +212,7 @@ namespace BurntMemory
 
         public void SetBreakpoint(IntPtr addy)
         {
+            Console.WriteLine("Attempting to set Breakpoint");
             if (addy == null)
                throw new RPMException("Tried to SetBreakpoint but addy input was null.");
 
@@ -225,7 +234,7 @@ namespace BurntMemory
                 throw new RPMException("Tried to SetBreakpoint but that breakpoint was already set!");
 
             _BreakpointList.Append(new Breakpoint(addy, 0));
-
+            Console.WriteLine("Appended");
             EvaluateBreakpointList();
         }
 
