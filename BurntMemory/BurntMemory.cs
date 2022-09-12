@@ -12,9 +12,12 @@ namespace BurntMemory
 
         //Singleton pattern
         private static readonly AttachState instance = new();
-        private AttachState() { 
-        //constructor
+        private AttachState() {
+            //constructor
         }
+
+
+        public static Debugger _Debugger = BurntMemory.Debugger.Instance;
 
         public static AttachState Instance
         {
@@ -25,6 +28,7 @@ namespace BurntMemory
 
 
         //a test property that I may remove later
+        private bool attached = false;
         public bool Attached
         { 
         get { return attached; }    
@@ -49,11 +53,13 @@ namespace BurntMemory
         public Dictionary<string, IntPtr> modules = new();
 
 
-        private bool attached = false;
+        
         private bool Attach() //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
 
             //TODO: clean this up a bunch to handle errors and whatnot
+
+            //Should we add a closehandle here?
 
             IntPtr processHandle;
 
@@ -80,7 +86,7 @@ namespace BurntMemory
 
 
 
-        private bool VerifyAttached() //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
+        public bool VerifyAttached() //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {           
             //check if we ever grabbed a processID
             if (ProcessID == null)
