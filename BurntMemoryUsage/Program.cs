@@ -75,8 +75,13 @@ out IntPtr pSecurityDescriptor);
 
 
             Console.WriteLine(Marshal.GetLastWin32Error());
-            Console.ReadKey();
 
+
+            while (true)
+            {
+                Console.ReadKey();
+                BurntMemory.Debugger.Instance.SetBreakpoint(AddressToBreakpoint);
+            }
 
             //BurntMemory.Debugger.Instance.CloseGracefully();
 

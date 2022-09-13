@@ -49,6 +49,12 @@ namespace BurntMemory
 
         private Process? Process;
 
+        public Process? ProcessPublic
+        {
+            get { return Process; }
+            set { Process = value; }
+        }
+
         //list of process modules and their base addresses. the main module is stored under key "main".
         public Dictionary<string, IntPtr> modules = new();
 

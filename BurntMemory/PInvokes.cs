@@ -11,11 +11,25 @@ namespace BurntMemory
     //99% of this PInvoke class is ripped from https://ladydebug.com/blog/2017/12/05/writing-windows-debugger-in-c/
     public class PInvokes
     {
+
+
+
+
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle,
      uint dwThreadId);
 
-        public const uint GET_CONTEXT = 0x08;
+
+        public const uint TERMINATE = 0x0001,
+        SUSPEND_RESUME = 0x0002,
+        GET_CONTEXT = 0x0008,
+        SET_CONTEXT = 0x0010,
+        SET_INFORMATION = 0x0020,
+        QUERY_INFORMATION = 0x0040,
+        SET_THREAD_TOKEN = 0x0080,
+        IMPERSONATE = 0x0100,
+        DIRECT_IMPERSONATION = 0x0200;
+
 
         //for reading/writing from process memory
         [DllImport("kernel32.dll")]
@@ -46,6 +60,22 @@ namespace BurntMemory
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool CloseHandle(IntPtr hThread);
+
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CREATE_PROCESS_DEBUG_INFO
+        {
+            public IntPtr hFile;
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public IntPtr lpBaseOfImage;
+            public uint dwDebugInfoFileOffset;
+            public uint nDebugInfoSize;
+            public IntPtr lpThreadLocalBase;
+            public IntPtr lpStartAddress;  // PTHREAD_START_ROUTINE lpStartAddress;
+            public IntPtr lpImageName;
+            public ushort fUnicode;
+        }
 
         public enum CONTEXT_FLAGS : uint
         {

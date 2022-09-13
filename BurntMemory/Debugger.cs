@@ -52,7 +52,7 @@ namespace BurntMemory
             }
         }
 
-        private static Breakpoint[] _BreakpointList = new Breakpoint[0];
+        private static List<Breakpoint> _BreakpointList = new List<Breakpoint>();
 
 
         private static bool _IsProcessDebugged;
@@ -85,8 +85,27 @@ namespace BurntMemory
         }
         private Thread _DebugThread;
 
+
+        static int BreakpointListContains(IntPtr addy)
+        {
+            if (_BreakpointList == null)
+                return -1;
+
+            if (_BreakpointList.Count() == 0)
+                return -2;
+
+            for (int i = 0; i < _BreakpointList.Count(); i++)
+            {
+                if (_BreakpointList[i].Address == addy)
+                    return i;
+            }
+
+            return -3;
+        }
+
         static void DebugThread()
         {
+            IntPtr lpBaseOfDllLoad = IntPtr.Zero;
             Console.WriteLine("Hello from DebugThread");
             while (true)
             {
@@ -135,13 +154,77 @@ namespace BurntMemory
                         PInvokes.DEBUG_EVENT DebugEvent = (PInvokes.DEBUG_EVENT)Marshal.PtrToStructure(debugEventPtr, typeof(PInvokes.DEBUG_EVENT));
                         IntPtr debugInfoPtr = GetIntPtrFromByteArray(DebugEvent.u);
 
+                       
+
+                        PInvokes.EXCEPTION_DEBUG_INFO ExceptionDebugInfo = (PInvokes.EXCEPTION_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.EXCEPTION_DEBUG_INFO));
+                        string exceptionDebugStr = String.Format("EXCEPTION_DEBUG_EVENT: Exception Address: 0x{0:x}, Exception code: 0x{1:x}",
+                            (ulong)ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, ExceptionDebugInfo.ExceptionRecord.ExceptionCode);
+                        Console.WriteLine(exceptionDebugStr);
+
+                        switch (DebugEvent.dwDebugEventCode)
+                        {
+                            case PInvokes.CREATE_PROCESS_DEBUG_EVENT:
+                                Console.WriteLine("CREATE_PROCESS_DEBUG_EVENT");
+                                PInvokes.CREATE_PROCESS_DEBUG_INFO CreateProcessDebugInfo = (PInvokes.CREATE_PROCESS_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.CREATE_PROCESS_DEBUG_INFO));
+                                //hProcess = CreateProcessDebugInfo.hProcess;
+                                break;
+                            case PInvokes.CREATE_THREAD_DEBUG_EVENT:
+                                Console.WriteLine("CREATE_THREAD_DEBUG_EVENT");
+                                /*              PInvokes.CREATE_THREAD_DEBUG_INFO CreateThreadDebugInfo;
+                                            CreateThreadDebugInfo.hThread = (IntPtr)BitConverter.ToUInt64(DebugEvent.u, 0);
+                                            CreateThreadDebugInfo.lpThreadLocalBase = (IntPtr)BitConverter.ToUInt64(DebugEvent.u, 8);
+                                            CreateThreadDebugInfo.lpStartAddress = (PInvokes.PTHREAD_START_ROUTINE)Marshal.GetDelegateForFunctionPointer((IntPtr)BitConverter.ToUInt64(DebugEvent.u, 8), typeof(PInvokes.PTHREAD_START_ROUTINE));
+                //                               CreateThreadDebugInfo.lpStartAddress = (PInvokes.PTHREAD_START_ROUTINE)BitConverter.ToUInt64(DebugEvent.u, 16);*/
+                                break;
+
+                            case PInvokes.EXIT_PROCESS_DEBUG_EVENT:
+                                Console.WriteLine("EXIT_PROCESS_DEBUG_EVENT");
+                                PInvokes.EXIT_PROCESS_DEBUG_INFO ExitProcessDebugInfo = (PInvokes.EXIT_PROCESS_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.EXIT_PROCESS_DEBUG_INFO));
+                                //bContinueDebugging = false;
+                                break;
+                            case PInvokes.EXIT_THREAD_DEBUG_EVENT:
+                                Console.WriteLine("EXIT_THREAD_DEBUG_EVENT");
+                                PInvokes.EXIT_THREAD_DEBUG_INFO ExitThreadDebugInfo = (PInvokes.EXIT_THREAD_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.EXIT_THREAD_DEBUG_INFO));
+                                break;
+                            case PInvokes.LOAD_DLL_DEBUG_EVENT:
+                                PInvokes.LOAD_DLL_DEBUG_INFO LoadDLLDebugInfo = (PInvokes.LOAD_DLL_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.LOAD_DLL_DEBUG_INFO));
+                                lpBaseOfDllLoad = LoadDLLDebugInfo.lpBaseOfDll;
+                                //                            byte[] moduleName = new byte[1024];
+                                //                            UInt32 dwRet = PInvokes.GetModuleFileNameEx(hProcess, LoadDLLDebugInfo.lpBaseOfDll, out moduleName, 1024);
+                                //                            if (dwRet == 0)
+                                //                                dwRet = PInvokes.GetLastError();
+                                //                            Thread.Sleep(5000);
+                                //                            Console.WriteLine("LOAD_DLL_DEBUG_EVENT: Dll name: " + FindModule((int)nPid, LoadDLLDebugInfo));
+                                break;
+                            case PInvokes.OUTPUT_DEBUG_STRING_EVENT:
+                                Console.WriteLine("OUTPUT_DEBUG_STRING_EVENT");
+                                PInvokes.OUTPUT_DEBUG_STRING_INFO OutputDebugStringInfo = (PInvokes.OUTPUT_DEBUG_STRING_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.OUTPUT_DEBUG_STRING_INFO));
+                                UInt64 lpNumberOfBytesRead = 0;
+                                byte[] lpBuffer = new byte[OutputDebugStringInfo.nDebugStringLength];
+                                if (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, OutputDebugStringInfo.lpDebugStringData, lpBuffer, OutputDebugStringInfo.nDebugStringLength, ref lpNumberOfBytesRead))
+                                {
+                                    string debugOutputString = "";
+                                    if (OutputDebugStringInfo.fUnicode == 0)
+                                        debugOutputString = Encoding.ASCII.GetString(lpBuffer);
+                                    else
+                                        debugOutputString = Encoding.Unicode.GetString(lpBuffer);
+                                    Console.WriteLine("OutputDebugString: " + debugOutputString);
+                                }
+                                break;
+                            case PInvokes.RIP_EVENT:
+                                Console.WriteLine("RIP_EVENT");
+                                PInvokes.RIP_INFO RipInfo = (PInvokes.RIP_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.RIP_INFO));
+                                break;
+                            case PInvokes.UNLOAD_DLL_DEBUG_EVENT:
+                                PInvokes.UNLOAD_DLL_DEBUG_INFO UnloadDebugInfo = (PInvokes.UNLOAD_DLL_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.UNLOAD_DLL_DEBUG_INFO));
+                                Console.WriteLine("UNLOAD_DLL_DEBUG_EVENT: Dll name: " + "actually I don't care");
+                                break;
+                        }
 
                         if (DebugEvent.dwDebugEventCode == PInvokes.EXCEPTION_DEBUG_EVENT)
                         {
-                            PInvokes.EXCEPTION_DEBUG_INFO ExceptionDebugInfo = (PInvokes.EXCEPTION_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.EXCEPTION_DEBUG_INFO));
-                            string exceptionDebugStr = String.Format("EXCEPTION_DEBUG_EVENT: Exception Address: 0x{0:x}, Exception code: 0x{1:x}",
-                                (ulong)ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, ExceptionDebugInfo.ExceptionRecord.ExceptionCode);
-                            Console.WriteLine(exceptionDebugStr);
+                            
+                            Console.WriteLine("Processing EXCEPTION_DEBUG_EVENT");
                             switch (ExceptionDebugInfo.ExceptionRecord.ExceptionCode)
                             {
                                 case PInvokes.EXCEPTION_ACCESS_VIOLATION:
@@ -185,12 +268,20 @@ namespace BurntMemory
 
                             //hey that actually worked.
                             //now to SetThreadContext ie change registers 
-                            if (_BreakpointList != null && _BreakpointList.Length > 0  && ExceptionDebugInfo.ExceptionRecord.ExceptionAddress == _BreakpointList[0].Address)
+                            Console.WriteLine("Exception add: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
+                            int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress);
+                            Console.WriteLine(BreakpointHit.ToString());
+                            if (BreakpointHit >= 0)
                             {
+                                Console.WriteLine("Breakpoint HIT!: " + BreakpointHit);
                                 PInvokes.CONTEXT64 context64 = new PInvokes.CONTEXT64();
-                                context64.ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_CONTROL;
+                                context64.ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_ALL;
+
+                                //IntPtr hThread2 = DebugEvent.dwThreadId;
 
                                 IntPtr hThread = PInvokes.OpenThread(PInvokes.GET_CONTEXT, false, DebugEvent.dwThreadId);
+                                
+                                //IntPtr hThread = _BreakpointList[0].Address;
                                 if (PInvokes.GetThreadContext(hThread, ref context64))
                                 {
                                     Console.WriteLine("Rbp    : {0}", context64.Rbp);
@@ -202,23 +293,52 @@ namespace BurntMemory
                                     Console.WriteLine("SegSs  : {0}", context64.SegSs);
                                 }
 
-
+                                IntPtr hThread2 = PInvokes.OpenThread(PInvokes.SET_CONTEXT, false, DebugEvent.dwThreadId);
                                 Console.WriteLine("Setting rcx to 0");
                                 context64.Rcx = 0;
+                                //Console.WriteLine("Setting rip to rip - 1");
+                                //context64.Rip = context64.Rip - 1;
+                                //is this hitting like a page protection exception every time? 
+                                //why so many exception codes? 
+                                ReadWrite.WriteBytes(_BreakpointList[BreakpointHit].Address, (new byte[] { 0x48 }), true);
+                                PInvokes.SetThreadContext(hThread2, ref context64);
 
-                                ReadWrite.WriteBytes(_BreakpointList[0].Address, (new byte[] { _BreakpointList[0].originalCode }), true);
-                                PInvokes.SetThreadContext(hThread, ref context64);
-
-                                Debugger.Instance.RemoveBreakpoint(_BreakpointList[0].Address);
+                               //Debugger.Instance.RemoveBreakpoint(_BreakpointList[BreakpointHit].Address); //DON'T DO THIS, THREAD SAFETY ISSUE
                                 PInvokes.ResumeThread(hThread);
                                 PInvokes.CloseHandle(hThread);
+                                PInvokes.ResumeThread(hThread2);
+                                PInvokes.CloseHandle(hThread2);
 
 
-                            }
+
+                                /*foreach (ProcessThread thread in AttachState.ProcessPublic.Threads)
+                                {
+
+
+
+                                    uint iThreadId = (uint)thread.Id;
+                                    IntPtr hThread2 =
+                                        PInvokes.OpenThread(
+                                            PInvokes.SUSPEND_RESUME | PInvokes.SET_CONTEXT |
+                                            PInvokes.GET_CONTEXT, false, iThreadId);
+
+
+                                }
+*/
+
+
+                                }
 
                             
                            
 
+                        }
+                        else if (DebugEvent.dwDebugEventCode == PInvokes.LOAD_DLL_DEBUG_EVENT) 
+                            {
+                            PInvokes.LOAD_DLL_DEBUG_INFO LoadDLLDebugInfo = (PInvokes.LOAD_DLL_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.LOAD_DLL_DEBUG_INFO));
+                            PInvokes.CloseHandle(LoadDLLDebugInfo.hFile);
+                            //lpBaseOfDllLoad = LoadDLLDebugInfo.lpBaseOfDll;
+                            //lpBaseOfDllLoad = IntPtr.Zero;
                         }
                         // Resume executing the thread that reported the debugging event. 
 
@@ -249,7 +369,7 @@ namespace BurntMemory
 
         private void EvaluateBreakpointList()
         {
-            if (_BreakpointList.Count() == 0)
+            if (_BreakpointList.Count() > 0)
             {
                 _KeepDebugging = true;
                 _StartDebugging = true;
@@ -289,9 +409,12 @@ namespace BurntMemory
                 throw new RPMException("Tried to SetBreakpoint but that breakpoint was already set!");
 
             byte[] originalCode = ReadWrite.ReadBytes(addy);
-            _BreakpointList.Append(new Breakpoint(addy, 0, originalCode[0]));
+            Console.WriteLine("originalCode: " + originalCode[0]);
+            _BreakpointList.Add(new Breakpoint(addy, 0, originalCode[0]));
+            //_BreakpointList.Append(new Breakpoint(addy, 0, originalCode[0]));
+            
             Console.WriteLine("Appended");
-
+            Console.WriteLine("_BreakpointList count: " + _BreakpointList.Count());
             ReadWrite.WriteBytes(addy, new byte[] { 0xCC }, true);
             
             
@@ -303,7 +426,12 @@ namespace BurntMemory
             if (addy == null)
                 throw new RPMException("Tried to RemoveBreakpoint but addy input was null.");
 
-            _BreakpointList = Array.FindAll(_BreakpointList, bp => bp.Address == addy).ToArray();
+            foreach (Breakpoint bp in _BreakpointList)
+            {
+                if (bp.Address == addy)
+                    _BreakpointList.Remove(bp);
+            }
+            //_BreakpointList = Array.FindAll(_BreakpointList, bp => bp.Address == addy).ToArray();
             EvaluateBreakpointList();
 
         }
