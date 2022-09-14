@@ -40,19 +40,19 @@ namespace BurntMemory
 
         public struct Breakpoint
         {
-            public IntPtr Address;
+            public ReadWrite.Pointer? Pointer;
             public int function;
             public byte originalCode;
 
-            public Breakpoint(IntPtr Address, int function, byte originalCode)
+            public Breakpoint(ReadWrite.Pointer ptr, int function, byte originalCode)
             {
-                this.Address = Address;
+                this.Pointer = ptr;
                 this.function = function;
                 this.originalCode = originalCode;
             }
         }
 
-        private static List<Breakpoint> _BreakpointList = new List<Breakpoint>();
+        private static List<Breakpoint> _BreakpointList = new();
 
 
         private static bool _IsProcessDebugged;
@@ -96,7 +96,8 @@ namespace BurntMemory
 
             for (int i = 0; i < _BreakpointList.Count(); i++)
             {
-                if (_BreakpointList[i].Address == addy)
+
+                if (ReadWrite.ResolvePointer(_BreakpointList[i].Pointer) == addy)
                     return i;
             }
 
@@ -274,8 +275,10 @@ namespace BurntMemory
                             if (BreakpointHit >= 0)
                             {
                                 Console.WriteLine("Breakpoint HIT!: " + BreakpointHit);
-                                PInvokes.CONTEXT64 context64 = new PInvokes.CONTEXT64();
-                                context64.ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_ALL;
+                                PInvokes.CONTEXT64 context64 = new()
+                                {
+                                    ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_ALL
+                                };
 
                                 //IntPtr hThread2 = DebugEvent.dwThreadId;
 
@@ -300,7 +303,7 @@ namespace BurntMemory
                                 //context64.Rip = context64.Rip - 1;
                                 //is this hitting like a page protection exception every time? 
                                 //why so many exception codes? 
-                                ReadWrite.WriteBytes(_BreakpointList[BreakpointHit].Address, (new byte[] { 0x48 }), true);
+                                ReadWrite.WriteBytes(_BreakpointList[BreakpointHit].Pointer, (new byte[] { 0x48 }), true);
                                 PInvokes.SetThreadContext(hThread2, ref context64);
 
                                //Debugger.Instance.RemoveBreakpoint(_BreakpointList[BreakpointHit].Address); //DON'T DO THIS, THREAD SAFETY ISSUE
@@ -310,21 +313,6 @@ namespace BurntMemory
                                 PInvokes.CloseHandle(hThread2);
 
 
-
-                                /*foreach (ProcessThread thread in AttachState.ProcessPublic.Threads)
-                                {
-
-
-
-                                    uint iThreadId = (uint)thread.Id;
-                                    IntPtr hThread2 =
-                                        PInvokes.OpenThread(
-                                            PInvokes.SUSPEND_RESUME | PInvokes.SET_CONTEXT |
-                                            PInvokes.GET_CONTEXT, false, iThreadId);
-
-
-                                }
-*/
 
 
                                 }
@@ -385,11 +373,9 @@ namespace BurntMemory
 
         }
 
-        public void SetBreakpoint(IntPtr addy)
+        public void SetBreakpoint(ReadWrite.Pointer ptr)
         {
             Console.WriteLine("Attempting to set Breakpoint");
-            if (addy == null)
-               throw new RPMException("Tried to SetBreakpoint but addy input was null.");
 
             if (AttachState.ProcessID == null)
                 throw new RPMException("Tried to SetBreakpoint but ProcessID was null.");
@@ -401,34 +387,34 @@ namespace BurntMemory
             bool alreadyset = false;
             foreach (Breakpoint bp in _BreakpointList)
             { 
-            if (bp.Address == addy)
+            if (bp.Pointer == ptr)
                     alreadyset = true;
             }
 
             if (alreadyset)
                 throw new RPMException("Tried to SetBreakpoint but that breakpoint was already set!");
 
-            byte[] originalCode = ReadWrite.ReadBytes(addy);
+            byte[] originalCode = ReadWrite.ReadBytes(ptr);
             Console.WriteLine("originalCode: " + originalCode[0]);
-            _BreakpointList.Add(new Breakpoint(addy, 0, originalCode[0]));
+            _BreakpointList.Add(new Breakpoint(ptr, 0, originalCode[0]));
             //_BreakpointList.Append(new Breakpoint(addy, 0, originalCode[0]));
             
             Console.WriteLine("Appended");
             Console.WriteLine("_BreakpointList count: " + _BreakpointList.Count());
-            ReadWrite.WriteBytes(addy, new byte[] { 0xCC }, true);
+            ReadWrite.WriteBytes(ptr, new byte[] { 0xCC }, true);
             
             
             EvaluateBreakpointList();
         }
 
-        public void RemoveBreakpoint(IntPtr addy)
+        public void RemoveBreakpoint(ReadWrite.Pointer ptr)
         {
-            if (addy == null)
-                throw new RPMException("Tried to RemoveBreakpoint but addy input was null.");
+            if (ptr == null)
+                throw new RPMException("Tried to RemoveBreakpoint but ptr input was null.");
 
             foreach (Breakpoint bp in _BreakpointList)
             {
-                if (bp.Address == addy)
+                if (bp.Pointer == ptr)
                     _BreakpointList.Remove(bp);
             }
             //_BreakpointList = Array.FindAll(_BreakpointList, bp => bp.Address == addy).ToArray();
@@ -437,16 +423,7 @@ namespace BurntMemory
         }
 
 
-        private static bool _CloseDebugger = false;
-        public void CloseGracefully()
-        {
-            Console.WriteLine("aborting debug thread");
-            _CloseDebugger = true;
-            Thread.Sleep(2000);
-            _DebugThread.Abort();
 
-
-        }
 
 
     }

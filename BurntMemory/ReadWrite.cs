@@ -17,20 +17,81 @@ namespace BurntMemory
 
         }
 
-        //for reading/writing from process memory
-       
+        public class Pointer
+        {
+            public string? Modulename;
+            public int[]? Offsets;
+            public IntPtr? Address;
+            public IntPtr? BaseAddress;
+
+            public Pointer(string a, int[] b)
+            {
+                Modulename = a;
+                Offsets = b;
+                Address = null;
+                BaseAddress = null;
+            }
+
+            public Pointer(IntPtr a, int[] b)
+            {
+                Modulename = null;
+                Offsets = b;
+                Address = null;
+                BaseAddress = a;
+            }
+
+            public Pointer(IntPtr a)
+            {
+                Modulename = null;
+                Offsets = null;
+                Address = a;
+                BaseAddress = null;
+            }
+            public Pointer(int[] a)
+            {
+                Modulename = null;
+                Offsets = a;
+                Address = null;
+                BaseAddress = null;
+            }
+        }
+
+        public static IntPtr? ResolvePointer(Pointer? ptr)
+        {
+            if (ptr == null)
+                return null;
+
+            if (ptr.Address != null)
+            { 
+            return (IntPtr)ptr.Address;
+            }
+
+            if (ptr.BaseAddress != null)
+            {
+                return ResolvePointer((IntPtr)ptr.BaseAddress, (int[])ptr.Offsets);
+            }
+
+                if (ptr.Modulename!= null)
+                {
+                    return ResolvePointer((string)ptr.Modulename, (int[])ptr.Offsets);
+                }
+
+                return ResolvePointer(IntPtr.Zero, (int[])ptr.Offsets);
+
+            }
+
 
         //TODO: double check this makes sense with multi level pointers
-        public static IntPtr ResolveAddress(string modulename, int[] offsets)
+        private static IntPtr ResolvePointer(string modulename, int[] offsets)
         {
             IntPtr baseAddress = AttachState.modules[modulename];
-            return ResolveAddress(baseAddress, offsets);
+            return ResolvePointer(baseAddress, offsets);
         }
 
         //TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
         //TODO: should probably make the incomming baseaddress nullable?
         //TODO: test multi-level pointers
-        public static IntPtr ResolveAddress(IntPtr baseAddress, int[] offsets)
+        private static IntPtr ResolvePointer(IntPtr baseAddress, int[] offsets)
         {
             IntPtr ptr = baseAddress;
 
@@ -45,25 +106,7 @@ namespace BurntMemory
 
             foreach (int i in offsets)
             {
-
-                /*                if (IntPtr.Size == 4)
-                                {
-                                    Int32? read = ReadInteger(ptr);
-                                    if (read.HasValue)
-                                    ptr = IntPtr.Add(new IntPtr((ReadInteger(ptr).GetValueOrDefault())), i);
-                                }
-                                else 
-                                {
-                                    Int64? read = ReadInteger(ptr);
-                                    if (read.HasValue)
-                                        ptr = IntPtr.Add(new IntPtr((ReadQword(ptr).GetValueOrDefault())), i);
-                                }*/
-
-                ptr = (IntPtr.Size == 4)
-                ? IntPtr.Add(new IntPtr((ReadInteger(ptr).GetValueOrDefault())), i)
-                : ptr = IntPtr.Add(new IntPtr((long)ReadQword(ptr).GetValueOrDefault()), i);
-                //here's a question- why do IntPtrs use signed ints instead of unsigned? and will that cause issues?
-
+                ptr = IntPtr.Add(new IntPtr((long)ReadQword(new Pointer(ptr)).GetValueOrDefault()), i);
             }
 
 
@@ -78,8 +121,9 @@ namespace BurntMemory
 
 
         
-        public static UInt32? ReadInteger(IntPtr? addy)
+        public static UInt32? ReadInteger(Pointer? ptr)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
 
@@ -87,8 +131,9 @@ namespace BurntMemory
             return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
         }
 
-        public static UInt64? ReadQword(IntPtr? addy)
+        public static UInt64? ReadQword(Pointer? ptr)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
 
@@ -96,8 +141,9 @@ namespace BurntMemory
             return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, 8, out int bytesRead)) ? (ulong)BitConverter.ToInt64(data, 0) : null;
         }
 
-        public static byte[]? ReadBytes(IntPtr? addy, uint length = 1)
+        public static byte[]? ReadBytes(Pointer? ptr, uint length = 1)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
             byte[]? data = new byte[length];
@@ -105,8 +151,9 @@ namespace BurntMemory
         }
 
         //TODO: add a unicode option
-        public static string? ReadString(IntPtr? addy, uint length) 
+        public static string? ReadString(Pointer? ptr, uint length) 
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
             byte[] data = new byte[length];
@@ -115,8 +162,9 @@ namespace BurntMemory
 
 
         //TODO: instead of just having a success boolean, we should instead return error codes (zero if no error)
-        public static bool WriteInteger(IntPtr? addy, UInt32 value, bool isProtected)
+        public static bool WriteInteger(Pointer? ptr, UInt32 value, bool isProtected)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return false;
 
@@ -135,8 +183,9 @@ namespace BurntMemory
             return success;
         }
 
-        public static bool WriteQword(IntPtr? addy, UInt64 value, bool isProtected)
+        public static bool WriteQword(Pointer? ptr, UInt64 value, bool isProtected)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return false;
 
@@ -157,8 +206,9 @@ namespace BurntMemory
 
 
 
-        public static bool WriteBytes(IntPtr? addy, byte[] value, bool isProtected)
+        public static bool WriteBytes(Pointer? ptr, byte[] value, bool isProtected)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return false;
 
@@ -178,13 +228,14 @@ namespace BurntMemory
         }
 
         //TODO: add a unicode option
-        public static bool WriteString(IntPtr? addy, string stringtowrite, bool isProtected)
+        public static bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected)
         {
+            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return false;
 
             byte[] value = Encoding.ASCII.GetBytes(stringtowrite);
-            return WriteBytes(addy, value, isProtected);
+            return WriteBytes(new Pointer((IntPtr)addy), value, isProtected);
         }
 
 

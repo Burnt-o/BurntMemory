@@ -103,7 +103,7 @@ namespace BurntMemory
              return false;
 
             //check if we can successfully read a byte from the process
-            return ReadWrite.ReadBytes(this.modules["main"]) != null; ; 
+            return ReadWrite.ReadBytes(new ReadWrite.Pointer(modules["main"])) != null; ; 
          }
 
         
