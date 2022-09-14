@@ -106,6 +106,7 @@ namespace BurntMemory
 
         static void DebugThread()
         {
+            int? lastbreakpointhit = null;
             IntPtr lpBaseOfDllLoad = IntPtr.Zero;
             Console.WriteLine("Hello from DebugThread");
             while (true)
@@ -245,6 +246,9 @@ namespace BurntMemory
 
                                 case PInvokes.EXCEPTION_SINGLE_STEP:
                                     Console.WriteLine("EXCEPTION_SINGLE_STEP");
+                                    if (lastbreakpointhit != null)
+                                        //TODO: this will totally break if breakpoint list modified during singlestep
+                                    ReadWrite.WriteBytes(_BreakpointList[(int)lastbreakpointhit].Pointer, new byte[] { 0xCC }, true);
                                     break;
 
                                 case PInvokes.DBG_CONTROL_C:
@@ -266,58 +270,62 @@ namespace BurntMemory
 
                             //testing getting thread context (registers etc)
 
-
-                            //hey that actually worked.
-                            //now to SetThreadContext ie change registers 
-                            Console.WriteLine("Exception add: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
-                            int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress);
-                            Console.WriteLine(BreakpointHit.ToString());
-                            if (BreakpointHit >= 0)
+                            if (ExceptionDebugInfo.ExceptionRecord.ExceptionCode == PInvokes.EXCEPTION_BREAKPOINT)
                             {
-                                Console.WriteLine("Breakpoint HIT!: " + BreakpointHit);
-                                PInvokes.CONTEXT64 context64 = new()
+                                //hey that actually worked.
+                                //now to SetThreadContext ie change registers 
+                                Console.WriteLine("Exception add: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
+                                int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress);
+                                Console.WriteLine(BreakpointHit.ToString());
+                                if (BreakpointHit >= 0)
                                 {
-                                    ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_ALL
-                                };
+                                    lastbreakpointhit = BreakpointHit;
+                                    Console.WriteLine("Breakpoint HIT!: " + BreakpointHit);
+                                    PInvokes.CONTEXT64 context64 = new()
+                                    {
+                                        ContextFlags = PInvokes.CONTEXT_FLAGS.CONTEXT_ALL
+                                    };
 
-                                //IntPtr hThread2 = DebugEvent.dwThreadId;
+                                    //IntPtr hThread2 = DebugEvent.dwThreadId;
 
-                                IntPtr hThread = PInvokes.OpenThread(PInvokes.GET_CONTEXT, false, DebugEvent.dwThreadId);
-                                
-                                //IntPtr hThread = _BreakpointList[0].Address;
-                                if (PInvokes.GetThreadContext(hThread, ref context64))
-                                {
-                                    Console.WriteLine("Rbp    : {0}", context64.Rbp);
-                                    Console.WriteLine("Rcx    : {0}", context64.Rcx);
-                                    Console.WriteLine("Rip    : {0}", context64.Rip);
-                                    Console.WriteLine("SegCs  : {0}", context64.SegCs);
-                                    Console.WriteLine("EFlags : {0}", context64.EFlags);
-                                    Console.WriteLine("Rsp    : {0}", context64.Rsp);
-                                    Console.WriteLine("SegSs  : {0}", context64.SegSs);
+                                    IntPtr hThread = PInvokes.OpenThread(PInvokes.GET_CONTEXT, false, DebugEvent.dwThreadId);
+
+                                    //IntPtr hThread = _BreakpointList[0].Address;
+                                    if (PInvokes.GetThreadContext(hThread, ref context64))
+                                    {
+                                        Console.WriteLine("Rbp    : {0}", context64.Rbp);
+                                        Console.WriteLine("Rcx    : {0}", context64.Rcx);
+                                        Console.WriteLine("Rip    : {0}", context64.Rip);
+                                        Console.WriteLine("SegCs  : {0}", context64.SegCs);
+                                        Console.WriteLine("EFlags : {0}", context64.EFlags);
+                                        Console.WriteLine("Rsp    : {0}", context64.Rsp);
+                                        Console.WriteLine("SegSs  : {0}", context64.SegSs);
+                                    }
+
+                                    IntPtr hThread2 = PInvokes.OpenThread(PInvokes.SET_CONTEXT, false, DebugEvent.dwThreadId);
+                                    Console.WriteLine("Setting rcx to 0");
+                                    context64.Rcx = 0;
+                                    Console.WriteLine("Setting rip to rip - 1");
+                                    context64.Rip = context64.Rip - 1;
+                                    context64.EFlags |= 0x100; //Set trap flag, to raise single-step exception
+
+                                    //is this hitting like a page protection exception every time? 
+                                    //why so many exception codes? 
+                                    ReadWrite.WriteBytes(_BreakpointList[BreakpointHit].Pointer, new byte[] { _BreakpointList[BreakpointHit].originalCode }, true);
+                                    PInvokes.SetThreadContext(hThread2, ref context64);
+
+                                    //Debugger.Instance.RemoveBreakpoint(_BreakpointList[BreakpointHit].Address); //DON'T DO THIS, THREAD SAFETY ISSUE
+                                    PInvokes.ResumeThread(hThread);
+                                    PInvokes.CloseHandle(hThread);
+                                    PInvokes.ResumeThread(hThread2);
+                                    PInvokes.CloseHandle(hThread2);
+
+
+
+
                                 }
 
-                                IntPtr hThread2 = PInvokes.OpenThread(PInvokes.SET_CONTEXT, false, DebugEvent.dwThreadId);
-                                Console.WriteLine("Setting rcx to 0");
-                                context64.Rcx = 0;
-                                //Console.WriteLine("Setting rip to rip - 1");
-                                //context64.Rip = context64.Rip - 1;
-                                //is this hitting like a page protection exception every time? 
-                                //why so many exception codes? 
-                                ReadWrite.WriteBytes(_BreakpointList[BreakpointHit].Pointer, (new byte[] { 0x48 }), true);
-                                PInvokes.SetThreadContext(hThread2, ref context64);
-
-                               //Debugger.Instance.RemoveBreakpoint(_BreakpointList[BreakpointHit].Address); //DON'T DO THIS, THREAD SAFETY ISSUE
-                                PInvokes.ResumeThread(hThread);
-                                PInvokes.CloseHandle(hThread);
-                                PInvokes.ResumeThread(hThread2);
-                                PInvokes.CloseHandle(hThread2);
-
-
-
-
-                                }
-
-                            
+                            }
                            
 
                         }
