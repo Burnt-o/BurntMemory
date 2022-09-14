@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using Console = System.Diagnostics.Debug;
+using System.Runtime.InteropServices;
 using System.Diagnostics;
 
 
@@ -42,7 +43,7 @@ namespace BurntMemory
             set { _processToAttach = value; }
         }
 
-        public Int32? ProcessID = null;
+        public uint? ProcessID = null;
 
         //ReadWrite will use this.. a lot
         public IntPtr? GlobalProcessHandle;
@@ -56,7 +57,7 @@ namespace BurntMemory
         }
 
         //list of process modules and their base addresses. the main module is stored under key "main".
-        public Dictionary<string, IntPtr> modules = new();
+        public Dictionary<string, IntPtr?> modules = new();
 
 
         
@@ -75,16 +76,16 @@ namespace BurntMemory
             { return false; }
 
 
-            ProcessID = Process.Id;
+            ProcessID = (uint)Process.Id;
             processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, Process.Id);
 
             GlobalProcessHandle = processHandle;
             attached = true;
 
             Console.WriteLine("Process: " + Process.ToString());
-            Console.WriteLine("Main module: " + Process.MainModule.ToString());
-            Console.WriteLine("MM addy " + Process.MainModule.BaseAddress.ToString());
-            this.modules["main"] = Process.MainModule.BaseAddress;
+            Console.WriteLine("Main module: " + Process.MainModule?.ToString());
+            Console.WriteLine("MM addy " + Process.MainModule?.BaseAddress.ToString());
+            this.modules["main"] = Process.MainModule != null ? Process.MainModule.BaseAddress : null;
             return true;
             }
 
@@ -103,7 +104,13 @@ namespace BurntMemory
              return false;
 
             //check if we can successfully read a byte from the process
-            return ReadWrite.ReadBytes(new ReadWrite.Pointer(modules["main"])) != null; ; 
+            IntPtr? baseAddress = modules["main"];
+            if (modules["main"] != null && baseAddress != null)
+            {
+                
+                return ReadWrite.ReadBytes(new ReadWrite.Pointer(baseAddress)) != null; ;
+            }
+            return false;
          }
 
         
@@ -125,15 +132,19 @@ namespace BurntMemory
         //TODO: probably going to make this private later. This is not it's final form in any case. Also I haven't tested it.
         public bool EvaluateModuleAddress(string modulename) //TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
-            ProcessModuleCollection allmodules = Process.Modules;
+            ProcessModuleCollection? allmodules = Process?.Modules;
+
+            if (allmodules == null)
+                return false;
 
             for (int i = 0; i < allmodules.Count; i++)
             {
-                if (allmodules[i].ModuleName.Contains(modulename))
-                {
-                    modules[modulename] = allmodules[i].BaseAddress;
-                    return true;
-                }
+
+                    if (allmodules[i].ModuleName != null && allmodules[i].ModuleName.Contains(modulename))
+                    {
+                        modules[modulename] = allmodules[i].BaseAddress;
+                        return true;
+                    }
             }
 
             return false;

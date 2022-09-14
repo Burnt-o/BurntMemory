@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Console = System.Diagnostics.Debug;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,7 +25,7 @@ namespace BurntMemory
             public IntPtr? Address;
             public IntPtr? BaseAddress;
 
-            public Pointer(string a, int[] b)
+            public Pointer(string? a, int[]? b)
             {
                 Modulename = a;
                 Offsets = b;
@@ -32,7 +33,7 @@ namespace BurntMemory
                 BaseAddress = null;
             }
 
-            public Pointer(IntPtr a, int[] b)
+            public Pointer(IntPtr? a, int[]? b)
             {
                 Modulename = null;
                 Offsets = b;
@@ -40,19 +41,44 @@ namespace BurntMemory
                 BaseAddress = a;
             }
 
-            public Pointer(IntPtr a)
+            public Pointer(IntPtr? a)
             {
                 Modulename = null;
                 Offsets = null;
                 Address = a;
                 BaseAddress = null;
             }
-            public Pointer(int[] a)
+            public Pointer(int[]? a)
             {
                 Modulename = null;
                 Offsets = a;
                 Address = null;
                 BaseAddress = null;
+            }
+
+            public Pointer(string? a, int[]? b, IntPtr? c, IntPtr? d) //used for deepcopy in +operator
+            {
+                Modulename = a;
+                Offsets = b;
+                Address = c;
+                BaseAddress = d;
+            }
+
+            public static Pointer? operator +(Pointer? a, int? b)
+            {
+                if (a == null || a.Offsets == null)
+                    return a;
+
+                //we don't want to modify the original Pointer, so make a copy
+                Pointer c = new(a.Modulename, (int[])a.Offsets.Clone(), a.Address, a.BaseAddress);
+
+    #pragma warning disable CS8602 // Dereference of a possibly null reference.
+                int? lastElement = c.Offsets[^1];
+    #pragma warning restore CS8602 // Dereference of a possibly null reference.
+
+                lastElement += b; //add offset to last element
+                c.Offsets[^1] = lastElement.GetValueOrDefault(); //update copied Pointer's last element
+                return c;
             }
         }
 
@@ -66,34 +92,52 @@ namespace BurntMemory
             return (IntPtr)ptr.Address;
             }
 
-            if (ptr.BaseAddress != null)
+            if (ptr.Offsets != null)
             {
-                return ResolvePointer((IntPtr)ptr.BaseAddress, (int[])ptr.Offsets);
-            }
+                if (ptr.BaseAddress != null)
+                {
+                    return ResolvePointer((IntPtr)ptr.BaseAddress, ptr.Offsets);
+                }
 
-                if (ptr.Modulename!= null)
+                if (ptr.Modulename != null)
                 {
                     return ResolvePointer((string)ptr.Modulename, (int[])ptr.Offsets);
                 }
 
                 return ResolvePointer(IntPtr.Zero, (int[])ptr.Offsets);
-
+            }
+            return null;
             }
 
 
         //TODO: double check this makes sense with multi level pointers
-        private static IntPtr ResolvePointer(string modulename, int[] offsets)
+        private static IntPtr? ResolvePointer(string modulename, int[]? offsets)
         {
-            IntPtr baseAddress = AttachState.modules[modulename];
+            if (AttachState.modules[modulename] == null)
+                return null;
+
+            IntPtr? baseAddress = AttachState.modules[modulename];
             return ResolvePointer(baseAddress, offsets);
         }
 
         //TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
         //TODO: should probably make the incomming baseaddress nullable?
         //TODO: test multi-level pointers
-        private static IntPtr ResolvePointer(IntPtr baseAddress, int[] offsets)
+
+
+        private static IntPtr? ResolvePointer(IntPtr? baseAddress, int[]? offsets)
         {
-            IntPtr ptr = baseAddress;
+            if (baseAddress == null)
+            {
+                baseAddress = AttachState.modules["main"];
+                if (baseAddress == null)
+                    return null;
+            }
+
+
+            IntPtr ptr = (IntPtr)baseAddress;
+
+
 
             if (offsets == null)
                 return ptr;
@@ -151,13 +195,14 @@ namespace BurntMemory
         }
 
         //TODO: add a unicode option
-        public static string? ReadString(Pointer? ptr, uint length) 
+        public static string? ReadString(Pointer? ptr, uint length, bool unicode) 
         {
+            Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
             IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return null;
             byte[] data = new byte[length];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? ASCIIEncoding.ASCII.GetString(data) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? encoding.GetString(data) : null;
         }
 
 
@@ -205,7 +250,14 @@ namespace BurntMemory
         }
 
 
-
+        public static bool WriteBytes(Pointer? ptr, int value, bool isProtected)
+        {
+            return WriteBytes(ptr, new byte[] { (byte)value }, isProtected);
+        }
+        public static bool WriteBytes(Pointer? ptr, byte value, bool isProtected)
+        {
+            return WriteBytes(ptr, new byte[] { value }, isProtected);
+        }
         public static bool WriteBytes(Pointer? ptr, byte[] value, bool isProtected)
         {
             IntPtr? addy = ResolvePointer(ptr);
@@ -228,13 +280,14 @@ namespace BurntMemory
         }
 
         //TODO: add a unicode option
-        public static bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected)
+        public static bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected, bool unicode)
         {
+            Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
             IntPtr? addy = ResolvePointer(ptr);
             if (addy == null || AttachState.GlobalProcessHandle == null)
                 return false;
 
-            byte[] value = Encoding.ASCII.GetBytes(stringtowrite);
+            byte[] value = encoding.GetBytes(stringtowrite);
             return WriteBytes(new Pointer((IntPtr)addy), value, isProtected);
         }
 
