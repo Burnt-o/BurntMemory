@@ -53,6 +53,8 @@ namespace BurntMemory
             }
         }
 
+
+
         private static List<Breakpoint> _BreakpointList = new();
 
 
@@ -88,10 +90,10 @@ namespace BurntMemory
             if (_BreakpointList == null)
                 return -1;
 
-            if (_BreakpointList.Count() == 0)
+            if (_BreakpointList.Count == 0)
                 return -2;
 
-            for (int i = 0; i < _BreakpointList.Count(); i++)
+            for (int i = 0; i < _BreakpointList.Count; i++)
             {
 
                 if (ReadWrite.ResolvePointer(_BreakpointList[i].Pointer) == addy)
@@ -140,6 +142,9 @@ namespace BurntMemory
 
                     //main debug thread loop logic:
 
+                    //we don't want _BreakpointList to get modified while the loop is running, so make a copy
+                    List<Breakpoint> _BreakpointListTemp = _BreakpointList.ConvertAll(s => new Breakpoint { Pointer = s.Pointer, onBreakpoint = s.onBreakpoint, originalCode = s.originalCode}).ToList();
+
                     IntPtr debugEventPtr = Marshal.AllocHGlobal(188);
                     bool bb = PInvokes.WaitForDebugEvent(debugEventPtr, 1000);
                     UInt32 dwContinueDebugEvent = PInvokes.DBG_CONTINUE;
@@ -164,16 +169,17 @@ namespace BurntMemory
 
                                     if (lastbreakpointhit != null)
                                         //TODO: this will totally break if breakpoint list modified during singlestep
-                                        ReadWrite.WriteBytes(_BreakpointList[(int)lastbreakpointhit].Pointer, new byte[] { 0xCC }, true);
+                                        //YEP it breaks
+                                        ReadWrite.WriteBytes(_BreakpointListTemp[(int)lastbreakpointhit].Pointer, new byte[] { 0xCC }, true);
 
                                     break;
 
                                     case PInvokes.EXCEPTION_BREAKPOINT:
-                                    Console.WriteLine("checking breakpointlist");
+                                   Debug.WriteLine("checking breakpointlist");
                                     int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress);
                                     if (BreakpointHit >= 0)
                                     {
-                                        Console.WriteLine("breakpoint hit!");
+                                        Debug.WriteLine("breakpoint hit! @ " + BreakpointHit.ToString());
                                         lastbreakpointhit = BreakpointHit;
                                         PInvokes.CONTEXT64 context64 = new()
                                         {
@@ -186,9 +192,9 @@ namespace BurntMemory
                                         {
                                             //do custom function things
                                             //TODO
-                                            context64 = _BreakpointList[BreakpointHit].onBreakpoint(context64);
+                                            context64 = _BreakpointListTemp[BreakpointHit].onBreakpoint(context64);
                                            
-                                            ReadWrite.WriteBytes(_BreakpointList[BreakpointHit].Pointer, _BreakpointList[BreakpointHit].originalCode, true); //TODO: how to handle this failing?
+                                            ReadWrite.WriteBytes(_BreakpointListTemp[BreakpointHit].Pointer, _BreakpointListTemp[BreakpointHit].originalCode, true); //TODO: how to handle this failing?
                                             context64.Rip--; //go back an instruction to execute original code
                                             context64.EFlags |= 0x100; //Set trap flag, to raise single-step exception
                                             PInvokes.SetThreadContext(hThread, ref context64); //TODO: how to handle this failing?
@@ -233,11 +239,17 @@ namespace BurntMemory
 
         private void EvaluateBreakpointList()
         {
-            if (_BreakpointList.Count() > 0)
+            if (_BreakpointList.Count > 0)
             {
+                if (_StartDebugging == false)
+                {
+                    Console.WriteLine("Setting _StartDebugging to true");
+                    _StartDebugging = true;
+                }
+                    
+
                 _KeepDebugging = true;
-                _StartDebugging = true;
-                Console.WriteLine("Setting _StartDebugging to true");
+                
             }
             else
             {
@@ -275,6 +287,7 @@ namespace BurntMemory
                 
 
             byte[]? originalCode = ReadWrite.ReadBytes(ptr);
+            Debug.WriteLine("originalCode for bp: " + ptr.ToString() + ", oc: " + originalCode?[0].ToString());
 
             if (originalCode == null)
                 throw new RPMException("Tried to SetBreakpoint but could't read original bytes of instruction.");
@@ -312,7 +325,7 @@ namespace BurntMemory
 
             foreach (Breakpoint bp in _BreakpointList.ToList())
             {
-                if (ReadWrite.ResolvePointer(bp.Pointer) == ReadWrite.ResolvePointer(ptr))
+                if (ReadWrite.ResolvePointer(bp.Pointer) == ReadWrite.ResolvePointer(ptr) || bp.Pointer == ptr)
                 {
                     _BreakpointList.Remove(bp);
                     try

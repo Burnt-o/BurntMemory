@@ -85,7 +85,8 @@ namespace BurntMemory
             Console.WriteLine("Process: " + Process.ToString());
             Console.WriteLine("Main module: " + Process.MainModule?.ToString());
             Console.WriteLine("MM addy " + Process.MainModule?.BaseAddress.ToString());
-            this.modules["main"] = Process.MainModule != null ? Process.MainModule.BaseAddress : null;
+            this.modules["main"] = Process.MainModule?.BaseAddress;
+            Thread.Sleep(100);
             return true;
             }
 

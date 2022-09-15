@@ -56,6 +56,7 @@ namespace BurntMemorySample
         }
 
         public BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
+        public BurntMemory.Debugger dbg = BurntMemory.Debugger.Instance;
 
         public MainWindow()
         {
@@ -158,9 +159,85 @@ namespace BurntMemorySample
             }
         }
 
+
+        private UInt64 playeraddy = 0;
         private void CheckboxInvuln_Click(object sender, RoutedEventArgs e)
         {
-            throw new NotImplementedException();
+            try
+            {
+                if (mem.AttachAndVerify())
+                {
+                    if (CheckboxInvuln.IsChecked == true)
+                    {
+                        dbg.RemoveBreakpoint(Pointers.PlayerAddy);
+                        dbg.RemoveBreakpoint(Pointers.ShieldChip);
+                        dbg.RemoveBreakpoint(Pointers.ShieldBreak);
+                        dbg.RemoveBreakpoint(Pointers.Health);
+                        Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
+
+                        onBreakpoint = context =>
+                        {
+                            playeraddy = (UInt64)context.R15;
+                            return context;
+                        };
+                        dbg.SetBreakpoint(Pointers.PlayerAddy, onBreakpoint);
+
+                        onBreakpoint = context =>
+                        {
+                            if (context.Rdi == (playeraddy + 0xA0))
+                            {
+                                context.Rcx = 0;
+                            }
+                            return context;
+                        };
+                        dbg.SetBreakpoint(Pointers.ShieldBreak, onBreakpoint);
+
+                        onBreakpoint = context =>
+                        {
+                            if (context.Rdi == (playeraddy + 0xA0))
+                            {
+                                context.R9 = 0x0800;
+                            }
+                            return context;
+                        };
+                        dbg.SetBreakpoint(Pointers.ShieldChip, onBreakpoint);
+
+                        onBreakpoint = context =>
+                        {
+                            if (context.Rbx == playeraddy)
+                            {
+                                context.Rbp = 0;
+                            }
+                            return context;
+                        };
+                        dbg.SetBreakpoint(Pointers.Health, onBreakpoint);
+
+                    }
+                    else
+                    {
+                        dbg.RemoveBreakpoint(Pointers.PlayerAddy);
+                        dbg.RemoveBreakpoint(Pointers.ShieldChip);
+                        dbg.RemoveBreakpoint(Pointers.ShieldBreak);
+                        dbg.RemoveBreakpoint(Pointers.Health);
+/*                        Debug.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
+                        if (BurntMemory.Debugger._BreakpointList.Count > 0)
+                        {
+                            foreach (BurntMemory.Debugger.Breakpoint bp in BurntMemory.Debugger._BreakpointList)
+                            {
+                                Debug.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
+                                Debug.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
+                                Debug.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
+                            }
+                        }*/
+                    }
+                }
+                else
+                    throw new Exception("CheckboxInvuln test failed");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("CheckboxInvuln error, " + ex.Message + ", " + PInvokes.GetLastError());
+            }
         }
 
         private void CheckboxSpeedhack_Click(object sender, RoutedEventArgs e)
@@ -174,7 +251,7 @@ namespace BurntMemorySample
             {
                 if (mem.AttachAndVerify())
                 {
-                    ReadWrite.WriteBytes(Pointers.Medusa, CheckboxMedusa.IsChecked.GetValueOrDefault() ? 1 : 0 , true);
+                    ReadWrite.WriteBytes(Pointers.Medusa, CheckboxMedusa.IsChecked == true ? 1 : 0 , true);
                 }
                 else
                     throw new Exception("TriggerRevert test failed");
@@ -182,6 +259,7 @@ namespace BurntMemorySample
             catch (Exception ex)
             {
                 MessageBox.Show("TriggerRevert error, " + ex.Message + ", " + PInvokes.GetLastError());
+                CheckboxMedusa.IsChecked = false;
             }
         }
 
