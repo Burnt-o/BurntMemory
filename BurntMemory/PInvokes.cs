@@ -12,7 +12,9 @@ namespace BurntMemory
     public class PInvokes
     {
 
-
+        [DllImport("kernel32.dll")]
+        public static extern bool FlushInstructionCache(IntPtr hProcess, IntPtr lpBaseAddress,
+   UIntPtr dwSize);
 
 
         [DllImport("kernel32.dll", SetLastError = true)]

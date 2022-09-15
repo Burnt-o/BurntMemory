@@ -169,10 +169,7 @@ namespace BurntMemorySample
                 {
                     if (CheckboxInvuln.IsChecked == true)
                     {
-                        dbg.RemoveBreakpoint(Pointers.PlayerAddy);
-                        dbg.RemoveBreakpoint(Pointers.ShieldChip);
-                        dbg.RemoveBreakpoint(Pointers.ShieldBreak);
-                        dbg.RemoveBreakpoint(Pointers.Health);
+                        dbg.ClearBreakpoints();
                         Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
 
                         onBreakpoint = context =>
@@ -180,7 +177,7 @@ namespace BurntMemorySample
                             playeraddy = (UInt64)context.R15;
                             return context;
                         };
-                        dbg.SetBreakpoint(Pointers.PlayerAddy, onBreakpoint);
+                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.PlayerAddy)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
@@ -190,7 +187,7 @@ namespace BurntMemorySample
                             }
                             return context;
                         };
-                        dbg.SetBreakpoint(Pointers.ShieldBreak, onBreakpoint);
+                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldBreak)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
@@ -200,7 +197,7 @@ namespace BurntMemorySample
                             }
                             return context;
                         };
-                        dbg.SetBreakpoint(Pointers.ShieldChip, onBreakpoint);
+                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldChip)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
@@ -210,25 +207,22 @@ namespace BurntMemorySample
                             }
                             return context;
                         };
-                        dbg.SetBreakpoint(Pointers.Health, onBreakpoint);
+                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.Health)), onBreakpoint);
 
                     }
                     else
                     {
-                        dbg.RemoveBreakpoint(Pointers.PlayerAddy);
-                        dbg.RemoveBreakpoint(Pointers.ShieldChip);
-                        dbg.RemoveBreakpoint(Pointers.ShieldBreak);
-                        dbg.RemoveBreakpoint(Pointers.Health);
-/*                        Debug.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
-                        if (BurntMemory.Debugger._BreakpointList.Count > 0)
-                        {
-                            foreach (BurntMemory.Debugger.Breakpoint bp in BurntMemory.Debugger._BreakpointList)
-                            {
-                                Debug.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
-                                Debug.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
-                                Debug.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
-                            }
-                        }*/
+                        dbg.ClearBreakpoints();
+                        /*                        Debug.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
+                                                if (BurntMemory.Debugger._BreakpointList.Count > 0)
+                                                {
+                                                    foreach (BurntMemory.Debugger.Breakpoint bp in BurntMemory.Debugger._BreakpointList)
+                                                    {
+                                                        Debug.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
+                                                        Debug.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
+                                                        Debug.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
+                                                    }
+                                                }*/
                     }
                 }
                 else

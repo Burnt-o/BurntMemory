@@ -85,18 +85,18 @@ namespace BurntMemory
         private readonly Thread _DebugThread;
 
 
-        static int BreakpointListContains(IntPtr addy)
+        static int BreakpointListContains(IntPtr addy, List<Breakpoint> BPList)
         {
-            if (_BreakpointList == null)
+            if (BPList == null)
                 return -1;
 
-            if (_BreakpointList.Count == 0)
+            if (BPList.Count == 0)
                 return -2;
 
-            for (int i = 0; i < _BreakpointList.Count; i++)
+            for (int i = 0; i < BPList.Count; i++)
             {
 
-                if (ReadWrite.ResolvePointer(_BreakpointList[i].Pointer) == addy)
+                if (ReadWrite.ResolvePointer(BPList[i].Pointer) == addy)
                     return i;
             }
 
@@ -116,6 +116,7 @@ namespace BurntMemory
                     _StopDebugging = false;
                         try
                         {
+                            //Marshal.FreeHGlobal(debugEventPtr);
                             PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID);
                         }
                         catch 
@@ -171,15 +172,16 @@ namespace BurntMemory
                                         //TODO: this will totally break if breakpoint list modified during singlestep
                                         //YEP it breaks
                                         ReadWrite.WriteBytes(_BreakpointListTemp[(int)lastbreakpointhit].Pointer, new byte[] { 0xCC }, true);
+                                        PInvokes.FlushInstructionCache((IntPtr)AttachState.GlobalProcessHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
 
                                     break;
 
                                     case PInvokes.EXCEPTION_BREAKPOINT:
-                                   Debug.WriteLine("checking breakpointlist");
-                                    int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress);
+                                   //Debug.WriteLine("checking breakpointlist");
+                                    int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, _BreakpointListTemp);
                                     if (BreakpointHit >= 0)
                                     {
-                                        Debug.WriteLine("breakpoint hit! @ " + BreakpointHit.ToString());
+                                        //Debug.WriteLine("breakpoint hit! @ " + BreakpointHit.ToString());
                                         lastbreakpointhit = BreakpointHit;
                                         PInvokes.CONTEXT64 context64 = new()
                                         {
@@ -193,15 +195,21 @@ namespace BurntMemory
                                             //do custom function things
                                             //TODO
                                             context64 = _BreakpointListTemp[BreakpointHit].onBreakpoint(context64);
-                                           
+
                                             ReadWrite.WriteBytes(_BreakpointListTemp[BreakpointHit].Pointer, _BreakpointListTemp[BreakpointHit].originalCode, true); //TODO: how to handle this failing?
                                             context64.Rip--; //go back an instruction to execute original code
                                             context64.EFlags |= 0x100; //Set trap flag, to raise single-step exception
                                             PInvokes.SetThreadContext(hThread, ref context64); //TODO: how to handle this failing?
 
                                         }
+                                        PInvokes.FlushInstructionCache((IntPtr)AttachState.GlobalProcessHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
+
                                         PInvokes.ResumeThread(hThread);
                                         PInvokes.CloseHandle(hThread);
+                                    }
+                                    else
+                                    {
+                                        Debug.WriteLine("Unhandled breakpoint at addy: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
                                     }
                                     break;
 
@@ -226,7 +234,7 @@ namespace BurntMemory
                                     (uint)DebugEvent.dwThreadId,
                                     dwContinueDebugEvent);
                     }
-                        Marshal.FreeHGlobal(debugEventPtr);
+                        
                 }
             
             
