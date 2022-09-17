@@ -177,7 +177,8 @@ namespace BurntMemorySample
                             playeraddy = (UInt64)context.R15;
                             return context;
                         };
-                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.PlayerAddy)), onBreakpoint);
+                        dbg.SetBreakpoint(Pointers.PlayerAddy, onBreakpoint);
+                        //dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.PlayerAddy)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
@@ -273,7 +274,13 @@ namespace BurntMemorySample
                 {
                     ReadWrite.WriteBytes(Pointers.Medusa, 0, false);
                 }
+
+                //below stuff should probably be moved to the Debugger Library at some point as some kind of "cleanup debugger" function.
                 BurntMemory.Debugger.Instance.ClearBreakpoints();
+                dbg._DebugThread.Abort();
+                dbg._DebugThread.Join(2000); //wait for thread to finish executing, or 2s
+
+
             }
         }
     }
