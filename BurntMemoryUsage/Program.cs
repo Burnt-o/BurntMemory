@@ -17,7 +17,7 @@ namespace BurntMemoryUsage
             mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
             if (mem.AttachAndVerify())
             {
-                mem.EvaluateModuleAddress("halo1");
+                mem.ReEvaluateModules("halo1");
 
                 ReadWrite.Pointer ptr = new("main", new int[] { 0x03B80E98, 0x8, 0x4E });
                 string? test = BurntMemory.ReadWrite.ReadString(ptr, 4, false);

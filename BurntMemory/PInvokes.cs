@@ -5,6 +5,10 @@ namespace BurntMemory
     // 99% of this PInvoke class is ripped from https://ladydebug.com/blog/2017/12/05/writing-windows-debugger-in-c/
     public class PInvokes
     {
+
+
+
+
         public const UInt32 CREATE_NEW_CONSOLE = 0x00000010;
 
         public const Int32 CREATE_PROCESS_DEBUG_EVENT = 3;
@@ -76,6 +80,10 @@ namespace BurntMemory
             CONTEXT_FULL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS,
             CONTEXT_ALL = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS
         }
+
+        [DllImport("Kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CheckRemoteDebuggerPresent(SafeHandle hProcess, [MarshalAs(UnmanagedType.Bool)] ref bool isDebuggerPresent);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool CloseHandle(IntPtr hThread);

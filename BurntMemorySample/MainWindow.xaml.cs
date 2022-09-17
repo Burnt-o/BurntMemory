@@ -21,8 +21,9 @@ namespace BurntMemorySample
         public MainWindow()
         {
             // AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
-            InitializeComponent();
-            mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
+            this.InitializeComponent();
+            this.mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
+            this.mem.TryToAttachTimer.Enabled = true;
         }
 
         private static void PrintMessage(string message)
@@ -53,54 +54,53 @@ namespace BurntMemorySample
         {
             try
             {
-                if (mem.AttachAndVerify())
+                if (this.mem.Attached)
                 {
-                    if (CheckboxInvuln.IsChecked == true)
+                    if (this.CheckboxInvuln.IsChecked == true)
                     {
-                        dbg.ClearBreakpoints();
+                        this.dbg.ClearBreakpoints();
                         Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
 
                         onBreakpoint = context =>
                         {
-                            playeraddy = (UInt64)context.R15;
+                            this.playeraddy = (UInt64)context.R15;
                             return context;
                         };
-                        dbg.SetBreakpoint(Pointers.PlayerAddy, onBreakpoint);
+                        this.dbg.SetBreakpoint("PlayerAddy", Pointers.PlayerAddy, onBreakpoint);
                         // dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.PlayerAddy)), onBreakpoint);
-
                         onBreakpoint = context =>
                         {
-                            if (context.Rdi == (playeraddy + 0xA0))
+                            if (context.Rdi == (this.playeraddy + 0xA0))
                             {
                                 context.Rcx = 0;
                             }
                             return context;
                         };
-                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldBreak)), onBreakpoint);
+                        this.dbg.SetBreakpoint("ShieldBreak", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldBreak)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
-                            if (context.Rdi == (playeraddy + 0xA0))
+                            if (context.Rdi == (this.playeraddy + 0xA0))
                             {
                                 context.R9 = 0x0800;
                             }
                             return context;
                         };
-                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldChip)), onBreakpoint);
+                        this.dbg.SetBreakpoint("ShieldChip", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldChip)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
-                            if (context.Rbx == playeraddy)
+                            if (context.Rbx == this.playeraddy)
                             {
                                 context.Rbp = 0;
                             }
                             return context;
                         };
-                        dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.Health)), onBreakpoint);
+                        this.dbg.SetBreakpoint("Health", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.Health)), onBreakpoint);
                     }
                     else
                     {
-                        dbg.ClearBreakpoints();
+                        this.dbg.ClearBreakpoints();
                         /*                        Debug.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
                                                 if (BurntMemory.Debugger._BreakpointList.Count > 0)
                                                 {
@@ -126,9 +126,9 @@ namespace BurntMemorySample
         {
             try
             {
-                if (mem.AttachAndVerify())
+                if (this.mem.Attached)
                 {
-                    ReadWrite.WriteBytes(Pointers.Medusa, CheckboxMedusa.IsChecked == true ? 1 : 0, true);
+                    ReadWrite.WriteBytes(Pointers.Medusa, this.CheckboxMedusa.IsChecked == true ? 1 : 0, true);
                 }
                 else
                     throw new Exception("TriggerRevert test failed");
@@ -136,7 +136,7 @@ namespace BurntMemorySample
             catch (Exception ex)
             {
                 MessageBox.Show("TriggerRevert error, " + ex.Message + ", " + PInvokes.GetLastError());
-                CheckboxMedusa.IsChecked = false;
+                this.CheckboxMedusa.IsChecked = false;
             }
         }
 
@@ -148,7 +148,7 @@ namespace BurntMemorySample
         private void MainWindow_closing(object sender, CancelEventArgs e)
         {
             Debug.WriteLine("I'm out of here");
-            if (AttachState.Instance.VerifyAttached())
+            if (this.mem.Attached)
             {
                 if (ReadWrite.ReadBytes(Pointers.Medusa, 1)?[0] == 1)
                 {
@@ -159,18 +159,22 @@ namespace BurntMemorySample
                 BurntMemory.Debugger.Instance.ClearBreakpoints();
             }
 
-            dbg.ExitThread = true;
-            if (!dbg._DebugThread.Join(1000)) // wait for thread to finish executing, or 2s
-            { Debug.WriteLine("debugger thread didn't exit on it's own :("); }
+            this.dbg.ApplicationClosing = true;
+            if (!this.dbg._DebugThread.Join(1000)) // wait for thread to finish executing, or 2s
+            {
+                Debug.WriteLine("debugger thread didn't exit on it's own :(");
+            }
             else
-            { Debug.WriteLine("wow the thread exited on it's own!"); }
+            {
+                Debug.WriteLine("wow the thread exited on it's own!");
+            }
         }
 
         private void TriggerCheckpoint(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (mem.AttachAndVerify() && ReadWrite.ReadInteger(Pointers.CPMessageCall) == 135945192)
+                if (this.mem.Attached && ReadWrite.ReadInteger(Pointers.CPMessageCall) == 135945192)
                 {
                     uint? currenttick = ReadWrite.ReadInteger(Pointers.Tickcount);
                     ReadWrite.WriteBytes(Pointers.CPMessageCall, new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 }, true);
@@ -192,7 +196,7 @@ namespace BurntMemorySample
         {
             try
             {
-                if (mem.AttachAndVerify())
+                if (this.mem.Attached)
                 {
                     ReadWrite.WriteBytes(Pointers.Coreload, new byte[] { 1 }, true);
                 }
@@ -209,7 +213,7 @@ namespace BurntMemorySample
         {
             try
             {
-                if (mem.AttachAndVerify())
+                if (this.mem.Attached)
                 {
                     ReadWrite.WriteBytes(Pointers.Coresave, new byte[] { 1 }, true);
                 }
@@ -226,7 +230,7 @@ namespace BurntMemorySample
         {
             try
             {
-                if (mem.AttachAndVerify())
+                if (this.mem.Attached)
                 {
                     ReadWrite.WriteBytes(Pointers.Revert, new byte[] { 1 }, true);
                 }
