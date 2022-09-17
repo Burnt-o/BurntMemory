@@ -1,60 +1,45 @@
 ﻿global using Console = System.Diagnostics.Debug;
 using BurntMemory;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Runtime.InteropServices;
-using System.IO;
-using System.Diagnostics;
-using System.Threading;
 
-
-using System.Security.AccessControl;
 namespace BurntMemoryUsage
-
 
 {
     internal class Program
     {
-        static void Main()
+        private static void Main()
         {
             AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
 
             ulong setRCXto = 6;
             Console.WriteLine("Hello World! This is a dumb program for testing random shit as I code the rest of BurntMemory");
             BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
-            mem.ProcessToAttach = "MCC-Win64-Shipping";
+            mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
             if (mem.AttachAndVerify())
-            { 
-            mem.EvaluateModuleAddress("halo1");
+            {
+                mem.EvaluateModuleAddress("halo1");
 
-            ReadWrite.Pointer ptr = new("main", new int[] { 0x03B80E98, 0x8, 0x4E });
-            string? test = BurntMemory.ReadWrite.ReadString(ptr, 4, false);
-            Console.WriteLine("Should say 'This': " + test);
+                ReadWrite.Pointer ptr = new("main", new int[] { 0x03B80E98, 0x8, 0x4E });
+                string? test = BurntMemory.ReadWrite.ReadString(ptr, 4, false);
+                Console.WriteLine("Should say 'This': " + test);
 
-            ReadWrite.Pointer BreakpointPtr = new("halo1", new int[] { 0xC540B5 });
+                ReadWrite.Pointer BreakpointPtr = new("halo1", new int[] { 0xC540B5 });
 
-                Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint = context =>
-                    {
-                        
-                        context.Rcx = setRCXto;
-                        return context;
-                    };
-            BurntMemory.Debugger.Instance.SetBreakpoint(BreakpointPtr, onBreakpoint);
+                PInvokes.CONTEXT64 onBreakpoint(PInvokes.CONTEXT64 context)
+                {
+                    context.Rcx = setRCXto;
+                    return context;
+                }
+                BurntMemory.Debugger.Instance.SetBreakpoint(BreakpointPtr, onBreakpoint);
             }
             Console.WriteLine(Marshal.GetLastWin32Error());
 
+            System.Console.ReadKey();
 
-
-                System.Console.ReadKey();
-
-
-            //BurntMemory.Debugger.Instance.CloseGracefully();
-
+            // BurntMemory.Debugger.Instance.CloseGracefully();
         }
 
-        static void OnProcessExit(object sender, EventArgs e)
+        private static void OnProcessExit(object sender, EventArgs e)
         {
             Console.WriteLine("I'm out of here");
             if (AttachState.Instance.VerifyAttached())
@@ -63,10 +48,5 @@ namespace BurntMemoryUsage
                 BurntMemory.Debugger.Instance.RemoveBreakpoint(BreakpointPtr2);
             }
         }
-
-
-
-
-
     }
 }

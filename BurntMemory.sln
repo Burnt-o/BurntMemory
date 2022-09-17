@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BurntMemory", "BurntMemory\BurntMemory.csproj", "{76C18053-2FBD-4444-BF65-DFCB41EEA4B4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BurntMemoryTest", "BurntMemoryTest\BurntMemoryTest.csproj", "{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BurntMemoryTest", "BurntMemoryTest\BurntMemoryTest.csproj", "{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BurntMemoryUsage", "BurntMemoryUsage\BurntMemoryUsage.csproj", "{784735C0-771E-4FB7-AAA0-E9457900DAD9}"
 EndProject
@@ -40,8 +40,8 @@ Global
 		{76C18053-2FBD-4444-BF65-DFCB41EEA4B4}.Release|x86.Build.0 = Release|Any CPU
 		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|x64.ActiveCfg = Debug|x64
-		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|x64.Build.0 = Debug|x64
+		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|x64.Build.0 = Debug|Any CPU
 		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|x86.ActiveCfg = Debug|Any CPU
 		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Debug|x86.Build.0 = Debug|Any CPU
 		{4D5F18E9-D17F-4E3E-A3E7-ED938F73C5A2}.Release|Any CPU.ActiveCfg = Release|Any CPU

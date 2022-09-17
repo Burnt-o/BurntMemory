@@ -1,21 +1,15 @@
-﻿using Console = System.Diagnostics.Debug;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Runtime.InteropServices;
-using System.IO;
-//using System.Diagnostics;
+﻿using System.Text;
+
+// using System.Diagnostics;
 
 namespace BurntMemory
 {
     public static class ReadWrite
     {
-        //TODO: do I need this?
+        // TODO: do I need this?
         public static AttachState AttachState
-            {
+        {
             get { return BurntMemory.AttachState.Instance; }
-
         }
 
         public class Pointer
@@ -48,6 +42,7 @@ namespace BurntMemory
                 Address = a;
                 BaseAddress = null;
             }
+
             public Pointer(int[]? a)
             {
                 Modulename = null;
@@ -56,7 +51,7 @@ namespace BurntMemory
                 BaseAddress = null;
             }
 
-            public Pointer(string? a, int[]? b, IntPtr? c, IntPtr? d) //used for deepcopy in +operator
+            public Pointer(string? a, int[]? b, IntPtr? c, IntPtr? d) // used for deepcopy in +operator
             {
                 Modulename = a;
                 Offsets = b;
@@ -69,15 +64,15 @@ namespace BurntMemory
                 if (a == null || a.Offsets == null)
                     return a;
 
-                //we don't want to modify the original Pointer, so make a copy
+                // we don't want to modify the original Pointer, so make a copy
                 Pointer c = new(a.Modulename, (int[])a.Offsets.Clone(), a.Address, a.BaseAddress);
 
-    #pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
                 int? lastElement = c.Offsets[^1];
-    #pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
-                lastElement += b; //add offset to last element
-                c.Offsets[^1] = lastElement.GetValueOrDefault(); //update copied Pointer's last element
+                lastElement += b; // add offset to last element
+                c.Offsets[^1] = lastElement.GetValueOrDefault(); // update copied Pointer's last element
                 return c;
             }
         }
@@ -88,8 +83,8 @@ namespace BurntMemory
                 return null;
 
             if (ptr.Address != null)
-            { 
-            return (IntPtr)ptr.Address;
+            {
+                return (IntPtr)ptr.Address;
             }
 
             if (ptr.Offsets != null)
@@ -107,10 +102,9 @@ namespace BurntMemory
                 return ResolvePointer(IntPtr.Zero, (int[])ptr.Offsets);
             }
             return null;
-            }
+        }
 
-
-        //TODO: double check this makes sense with multi level pointers
+        // TODO: double check this makes sense with multi level pointers
         private static IntPtr? ResolvePointer(string modulename, int[]? offsets)
         {
             if (AttachState.modules[modulename] == null)
@@ -120,10 +114,9 @@ namespace BurntMemory
             return ResolvePointer(baseAddress, offsets);
         }
 
-        //TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
-        //TODO: should probably make the incomming baseaddress nullable?
-        //TODO: test multi-level pointers
-
+        // TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
+        // TODO: should probably make the incomming baseaddress nullable?
+        // TODO: test multi-level pointers
 
         private static IntPtr? ResolvePointer(IntPtr? baseAddress, int[]? offsets)
         {
@@ -134,10 +127,7 @@ namespace BurntMemory
                     return null;
             }
 
-
             IntPtr ptr = (IntPtr)baseAddress;
-
-
 
             if (offsets == null)
                 return ptr;
@@ -153,18 +143,9 @@ namespace BurntMemory
                 ptr = IntPtr.Add(new IntPtr((long)ReadQword(new Pointer(ptr)).GetValueOrDefault()), i);
             }
 
-
             return ptr;
-
         }
 
-
-
-
-
-
-
-        
         public static UInt32? ReadInteger(Pointer? ptr)
         {
             IntPtr? addy = ResolvePointer(ptr);
@@ -194,8 +175,8 @@ namespace BurntMemory
             return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? data : null;
         }
 
-        //TODO: add a unicode option
-        public static string? ReadString(Pointer? ptr, uint length, bool unicode) 
+        // TODO: add a unicode option
+        public static string? ReadString(Pointer? ptr, uint length, bool unicode)
         {
             Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
             IntPtr? addy = ResolvePointer(ptr);
@@ -205,8 +186,7 @@ namespace BurntMemory
             return (PInvokes.ReadProcessMemory((IntPtr)AttachState.GlobalProcessHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? encoding.GetString(data) : null;
         }
 
-
-        //TODO: instead of just having a success boolean, we should instead return error codes (zero if no error)
+        // TODO: instead of just having a success boolean, we should instead return error codes (zero if no error)
         public static bool WriteInteger(Pointer? ptr, UInt32 value, bool isProtected)
         {
             IntPtr? addy = ResolvePointer(ptr);
@@ -249,15 +229,16 @@ namespace BurntMemory
             return success;
         }
 
-
         public static bool WriteBytes(Pointer? ptr, int value, bool isProtected)
         {
             return WriteBytes(ptr, new byte[] { (byte)value }, isProtected);
         }
+
         public static bool WriteBytes(Pointer? ptr, byte value, bool isProtected)
         {
             return WriteBytes(ptr, new byte[] { value }, isProtected);
         }
+
         public static bool WriteBytes(Pointer? ptr, byte[] value, bool isProtected)
         {
             IntPtr? addy = ResolvePointer(ptr);
@@ -279,7 +260,7 @@ namespace BurntMemory
             return success;
         }
 
-        //TODO: add a unicode option
+        // TODO: add a unicode option
         public static bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected, bool unicode)
         {
             Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
@@ -290,9 +271,5 @@ namespace BurntMemory
             byte[] value = encoding.GetBytes(stringtowrite);
             return WriteBytes(new Pointer((IntPtr)addy), value, isProtected);
         }
-
-
-
-
     }
 }
