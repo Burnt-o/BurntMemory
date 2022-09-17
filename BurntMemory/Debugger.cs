@@ -109,17 +109,24 @@ namespace BurntMemory
             return -3;
         }
 
+        private static bool _ExitThread = false;
+        public bool ExitThread
+        {
+            get { return _ExitThread;  }
+            set { _ExitThread = value; }
+        }
+
         static void DebugLoop()
         {
             IntPtr? hThread = null;
             bool bb = false;
-            bool ExitThread = false;
-            try
-            {
+
+
                 int? lastbreakpointhit = null;
                 IntPtr lpBaseOfDllLoad = IntPtr.Zero;
-                while (!ExitThread)
+                while (!_ExitThread)
                 {
+                Debug.WriteLine("yep");
                     if (!_KeepDebugging)
                     {
                         if (_StopDebugging)
@@ -159,7 +166,7 @@ namespace BurntMemory
                         List<Breakpoint> _BreakpointListTemp = _BreakpointList.ConvertAll(s => new Breakpoint { Pointer = s.Pointer, onBreakpoint = s.onBreakpoint, originalCode = s.originalCode }).ToList();
 
                         IntPtr debugEventPtr = Marshal.AllocHGlobal(188);
-                        bb = PInvokes.WaitForDebugEvent(debugEventPtr, 1000);
+                        bb = PInvokes.WaitForDebugEvent(debugEventPtr, 100);
                         UInt32 dwContinueDebugEvent = PInvokes.DBG_EXCEPTION_NOT_HANDLED;
                         if (bb)
                         {
@@ -280,18 +287,7 @@ namespace BurntMemory
                 try { PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID); }
                 catch { }
                 
-            }
-            catch (ThreadAbortException e)
-            {
-                _StopDebugging = true;
-                _KeepDebugging = false;
-                ExitThread = true;
-                Thread.ResetAbort();
-
-
-
-
-            }
+          
         }
 
         

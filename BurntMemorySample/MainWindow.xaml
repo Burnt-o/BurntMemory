@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BurntMemorySample"
         mc:Ignorable="d"
-        Title="MainWindow" Height="414" Width="280">
+        Title="MainWindow" Height="414" Width="280"
+        Closing="MainWindow_closing">
     <Grid>
         <Label Content="Hotkey" HorizontalAlignment="Left" Margin="29,14,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.961,0.465"/>
         <Label Content="Effect" HorizontalAlignment="Left" Margin="144,14,0,0" VerticalAlignment="Top"/>

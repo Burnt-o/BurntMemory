@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 using BurntMemory;
 using System.Threading;
 using System.Diagnostics;
+using System.ComponentModel;
 
 namespace BurntMemorySample
 {
@@ -60,9 +61,10 @@ namespace BurntMemorySample
 
         public MainWindow()
         {
-            AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
+            //AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
             InitializeComponent();
             mem.ProcessToAttach = "MCC-Win64-Shipping";
+
 
         }
 
@@ -264,8 +266,8 @@ namespace BurntMemorySample
         }
 
 
-
-        private void OnProcessExit(object? sender, EventArgs e)
+        
+        private void MainWindow_closing(object sender, CancelEventArgs e)
         {
             Debug.WriteLine("I'm out of here");
             if (AttachState.Instance.VerifyAttached())
@@ -277,11 +279,18 @@ namespace BurntMemorySample
 
                 //below stuff should probably be moved to the Debugger Library at some point as some kind of "cleanup debugger" function.
                 BurntMemory.Debugger.Instance.ClearBreakpoints();
-                dbg._DebugThread.Abort();
-                dbg._DebugThread.Join(2000); //wait for thread to finish executing, or 2s
+
+                    
 
 
             }
+
+            dbg.ExitThread = true;
+            if (!dbg._DebugThread.Join(1000)) //wait for thread to finish executing, or 2s
+            { Debug.WriteLine("debugger thread didn't exit on it's own :("); }
+            else
+            { Debug.WriteLine("wow the thread exited on it's own!"); }
+
         }
     }
 }
