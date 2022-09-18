@@ -7,11 +7,15 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.IO;
+using System.Reflection;
+using System.Security.Policy;
 
 namespace BurntMemory
 {
     public static class SpeedhackInjector
     
+        //TODO move these over to PInvokes
         {
     [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
@@ -49,22 +53,28 @@ namespace BurntMemory
         {
             AttachState mem = AttachState.Instance;
             if (mem.Attached == false)
+            {
                 return false;
-
-
+            }          
             // searching for the address of LoadLibraryA and storing it in a pointer
             IntPtr loadLibraryAddr = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
 
             // name of the dll we want to inject
-            string dllName = "C:\\Users\\mauri\\source\\repos\\BurntMemory\\x64\\Release\\SpeedHack.dll";
+            string dllName = "SpeedHack.dll";
+            string currentfolder = System.AppDomain.CurrentDomain.BaseDirectory;
+            string dllPath = currentfolder + dllName;
+            if (!File.Exists(dllPath))
+            {
+                return false;
+            }
 
             // alocating some memory on the target process - enough to store the name of the dll
             // and storing its address in a pointer
-            IntPtr allocMemAddress = VirtualAllocEx((IntPtr)mem.processHandle, IntPtr.Zero, (uint)((dllName.Length + 1) * Marshal.SizeOf(typeof(char))), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            IntPtr allocMemAddress = VirtualAllocEx((IntPtr)mem.processHandle, IntPtr.Zero, (uint)((dllPath.Length + 1) * Marshal.SizeOf(typeof(char))), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
             // writing the name of the dll there
             BurntMemory.ReadWrite.Pointer ptr = new ReadWrite.Pointer(allocMemAddress);
-            BurntMemory.ReadWrite.WriteBytes(ptr, Encoding.Default.GetBytes(dllName), true);
+            BurntMemory.ReadWrite.WriteBytes(ptr, Encoding.Default.GetBytes(dllPath), true);
 
             // creating a thread that will call LoadLibraryA with allocMemAddress as argument
             CreateRemoteThread((IntPtr)mem.processHandle, IntPtr.Zero, 0, loadLibraryAddr, allocMemAddress, 0, IntPtr.Zero);

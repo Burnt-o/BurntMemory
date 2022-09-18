@@ -44,7 +44,7 @@ namespace BurntMemorySample
                     ReadWrite.WriteBytes(Pointers.Medusa, 0, false);
                 }  
             }
-
+            SpeedhackManager.RemoveSpeedHack();
             this.dbg.GracefullyCloseDebugger();
         }
 

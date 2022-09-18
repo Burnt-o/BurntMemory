@@ -23,6 +23,23 @@ namespace BurntMemory
             return address;
         }
 
+        public static void RemoveSpeedHack() //basically same as SetSpeed but without trying to inject the dll. TODO: make this actually unload the DLL if it's in there and we're still attached.
+        {
+            IntPtr? address = GetSpeedhackAddress();
+            if (address != null)
+            {
+                const int offset_newspeed = 0x6740;
+                const int offset_newspeedflag = 0x6738;
+                ReadWrite.Pointer ptr = new ReadWrite.Pointer(address + offset_newspeed);
+                if (ReadWrite.WriteDouble(ptr, 1, true))
+                {
+                    ptr = new ReadWrite.Pointer(address + offset_newspeedflag);
+                    ReadWrite.WriteBytes(ptr, (byte)1, true);
+                }
+            }
+        }
+
+
         public static bool SetSpeed(double speed)
         { 
         IntPtr? address = GetSpeedhackAddress();
