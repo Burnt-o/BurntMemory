@@ -186,6 +186,25 @@ namespace BurntMemory
             return intPtr;
         }
 
+        public void GracefullyCloseDebugger()
+        {
+            if (AttachState.Attached)
+            {
+                BurntMemory.DebugManager.Instance.ClearBreakpoints();
+            }
+
+            this.ApplicationClosing = true; //a flag to tell the DebugThread to stop what it's doing after it's current loop
+            if (!this._DebugThread.Join(1000)) // wait for thread to finish executing, or 1s
+            {
+                Debug.WriteLine("DebugThread FAILED to shut down :(");
+            }
+            else
+            {
+                Debug.WriteLine("DebugThread successfully shut down"); //this should always happen
+            }
+
+        }
+
 
 
         public struct Breakpoint

@@ -26,6 +26,21 @@ namespace BurntMemorySample
             this.mem.TryToAttachTimer.Enabled = true;
         }
 
+
+        private void MainWindow_closing(object sender, CancelEventArgs e)
+        {
+            Debug.WriteLine("I'm out of here");
+            if (this.mem.Attached)
+            {
+                if (ReadWrite.ReadBytes(Pointers.Medusa, 1)?[0] == 1)
+                {
+                    ReadWrite.WriteBytes(Pointers.Medusa, 0, false);
+                }  
+            }
+
+            this.dbg.GracefullyCloseDebugger();
+        }
+
         private static void PrintMessage(string message)
         {
             // trim to 62 chars
@@ -145,30 +160,7 @@ namespace BurntMemorySample
             throw new NotImplementedException();
         }
 
-        private void MainWindow_closing(object sender, CancelEventArgs e)
-        {
-            Debug.WriteLine("I'm out of here");
-            if (this.mem.Attached)
-            {
-                if (ReadWrite.ReadBytes(Pointers.Medusa, 1)?[0] == 1)
-                {
-                    ReadWrite.WriteBytes(Pointers.Medusa, 0, false);
-                }
-
-                // below stuff should probably be moved to the Debugger Library at some point as some kind of "cleanup debugger" function.
-                BurntMemory.DebugManager.Instance.ClearBreakpoints();
-            }
-
-            this.dbg.ApplicationClosing = true;
-            if (!this.dbg._DebugThread.Join(1000)) // wait for thread to finish executing, or 2s
-            {
-                Debug.WriteLine("debugger thread didn't exit on it's own :(");
-            }
-            else
-            {
-                Debug.WriteLine("wow the thread exited on it's own!");
-            }
-        }
+ 
 
         private void TriggerCheckpoint(object sender, RoutedEventArgs e)
         {
