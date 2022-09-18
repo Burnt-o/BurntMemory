@@ -34,6 +34,8 @@ namespace BurntMemory
             get { return this.attached; }
         }
 
+        public bool ReloadModulesOnDLLEvent = false;
+
         // name of processes to attach to
         private string[]? processesToAttach;
         public string[]? ProcessesToAttach
@@ -59,7 +61,13 @@ namespace BurntMemory
 
         private void HandleDLLReload(object? sender, System.EventArgs e)
         {
-            EvaluateModules();
+            if (ReloadModulesOnDLLEvent)
+            {
+                Trace.WriteLine("Handling a DLL reload");
+                //EvaluateModules();
+                //So turns out if you EvaluateModules on DLL_LOAD_DEBUG_EVENT, you'll just generate even more DLL_LOAD_DEBUG_EVENTs in an infinite loop. bad times. 
+                //a better solution would be to have the event pass the filehandle of the dll, then we have our own function here that gets the filename from the handle, then updates the key in our modulelist (importantly; not reiterating thru the whole modulecollection.
+            }
         }
 
         public bool EvaluateModules() // TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
