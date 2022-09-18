@@ -76,14 +76,14 @@ namespace BurntMemoryTest
                 if (R11_L_value == 0x64) //char is "d"
                 {
                     context.R11 = (context.R11 & 0xff00) | 0x65; //set char to "e"
-                    Debug.WriteLine("R11 is now: " + context.R11);
+                    Trace.WriteLine("R11 is now: " + context.R11);
                 }
                 return context;
             };
 
             foreach (KeyValuePair<string, IntPtr?> kv in this.mem.modules)
             {
-                Debug.WriteLine("module: " + kv.Key);
+                Trace.WriteLine("module: " + kv.Key);
             }
 
                 ReadWrite.Pointer ptr = new ReadWrite.Pointer("msvcrt.dll", new int[] { 0x74428 });

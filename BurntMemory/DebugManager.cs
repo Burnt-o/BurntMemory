@@ -57,7 +57,7 @@ namespace BurntMemory
 
         public void RemoveBreakpoint(string BreakpointName)
         {
-            Debug.WriteLine("removing breakpoint");
+            Trace.WriteLine("removing breakpoint");
             foreach (Breakpoint bp in _BreakpointList.ToList())
             {
                 if (bp.BreakpointName == BreakpointName)
@@ -78,11 +78,11 @@ namespace BurntMemory
             {
                 RemoveBreakpoint(BreakpointName); //remove breakpoint if it was set before, we'll redo it here
                 byte[]? originalCode = ReadWrite.ReadBytes(ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
-                Debug.WriteLine("originalCode for bp: " + ptr.ToString() + ", oc: " + originalCode?[0].ToString());
+                Trace.WriteLine("originalCode for bp: " + ptr.ToString() + ", oc: " + originalCode?[0].ToString());
 
                 if (originalCode == null)
                 {
-                    Debug.WriteLine("Tried to SetBreakpoint but could't read original bytes of instruction.");
+                    Trace.WriteLine("Tried to SetBreakpoint but could't read original bytes of instruction.");
                     return false;
                 }
 
@@ -196,11 +196,11 @@ namespace BurntMemory
             this.ApplicationClosing = true; //a flag to tell the DebugThread to stop what it's doing after it's current loop
             if (!this._DebugThread.Join(1000)) // wait for thread to finish executing, or 1s
             {
-                Debug.WriteLine("DebugThread FAILED to shut down :(");
+                Trace.WriteLine("DebugThread FAILED to shut down :(");
             }
             else
             {
-                Debug.WriteLine("DebugThread successfully shut down"); //this should always happen
+                Trace.WriteLine("DebugThread successfully shut down"); //this should always happen
             }
 
         }

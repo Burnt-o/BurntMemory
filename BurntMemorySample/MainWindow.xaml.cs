@@ -36,7 +36,7 @@ namespace BurntMemorySample
 
         private void MainWindow_closing(object sender, CancelEventArgs e)
         {
-            Debug.WriteLine("I'm out of here");
+            Trace.WriteLine("I'm out of here");
             if (this.mem.Attached)
             {
                 if (ReadWrite.ReadBytes(Pointers.Medusa, 1)?[0] == 1)
@@ -57,13 +57,13 @@ namespace BurntMemorySample
             message = message.Length < 62 ? message.PadRight(62) : message;
 
             uint? tickcount = ReadWrite.ReadInteger(Pointers.Tickcount);
-            Debug.WriteLine("tickcount: " + tickcount.ToString());
+            Trace.WriteLine("tickcount: " + tickcount.ToString());
             if (tickcount != null)
             {
-                Debug.WriteLine("1: " + ReadWrite.WriteInteger(Pointers.MessageTC, (uint)tickcount, true).ToString());
-                Debug.WriteLine("2: " + ReadWrite.WriteString(Pointers.MessageTC + Offsets.MessageText, message, true, true).ToString());
-                Debug.WriteLine("3: " + ReadWrite.WriteBytes(Pointers.MessageTC + Offsets.MessageFlag, new byte[] { 0, 0, 1, 0 }, true).ToString());
-                Debug.WriteLine("4: " + ReadWrite.WriteInteger(Pointers.MessageTC + Offsets.MessageInt, 0xFFFFFFFF, true).ToString());
+                Trace.WriteLine("1: " + ReadWrite.WriteInteger(Pointers.MessageTC, (uint)tickcount, true).ToString());
+                Trace.WriteLine("2: " + ReadWrite.WriteString(Pointers.MessageTC + Offsets.MessageText, message, true, true).ToString());
+                Trace.WriteLine("3: " + ReadWrite.WriteBytes(Pointers.MessageTC + Offsets.MessageFlag, new byte[] { 0, 0, 1, 0 }, true).ToString());
+                Trace.WriteLine("4: " + ReadWrite.WriteInteger(Pointers.MessageTC + Offsets.MessageInt, 0xFFFFFFFF, true).ToString());
             }
         }
 
@@ -123,14 +123,14 @@ namespace BurntMemorySample
                     else
                     {
                         this.dbg.ClearBreakpoints();
-                        /*                        Debug.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
+                        /*                        Trace.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
                                                 if (BurntMemory.Debugger._BreakpointList.Count > 0)
                                                 {
                                                     foreach (BurntMemory.Debugger.Breakpoint bp in BurntMemory.Debugger._BreakpointList)
                                                     {
-                                                        Debug.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
-                                                        Debug.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
-                                                        Debug.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
+                                                        Trace.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
+                                                        Trace.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
+                                                        Trace.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
                                                     }
                                                 }*/
                     }
@@ -165,7 +165,7 @@ namespace BurntMemorySample
         private void CheckboxSpeedhack_Click(object sender, RoutedEventArgs e)
         {
             double value = (this.CheckboxSpeedhack.IsChecked == true) ? 10 : 1;
-            Debug.WriteLine("Speedhack set to " + value.ToString() + "?: " + SpeedhackManager.SetSpeed(value).ToString());
+            Trace.WriteLine("Speedhack set to " + value.ToString() + "?: " + SpeedhackManager.SetSpeed(value).ToString());
         }
 
  

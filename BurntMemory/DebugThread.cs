@@ -61,7 +61,7 @@ namespace BurntMemory
                     {
                         if (resetBreakpoints) //but first, if we've been told to resetBreakpoints then set CCwritten to false on all breakpoints that don't have CC written to it (interrupt set)
                         {
-                            Debug.WriteLine("Processing resetBreakpoints");
+                            Trace.WriteLine("Processing resetBreakpoints");
                             resetBreakpoints = false;
                             for (int i = 0; i < _BreakpointList.Count; i++)
                             {
@@ -75,7 +75,7 @@ namespace BurntMemory
 
                         if (newBreakpoints) // and second, set interrupts on any new breakpoints that have come in since the last loop (or all of them if resetBreakpoints was run)
                         {
-                            Debug.WriteLine("Processing newBreakpoints");
+                            Trace.WriteLine("Processing newBreakpoints");
                             newBreakpoints = false;
                             //foreach (Breakpoint bp in _BreakpointList)
                             for (int i = 0; i < _BreakpointList.Count; i++)
@@ -102,7 +102,7 @@ namespace BurntMemory
                         {
                             PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID);
                         }
-                        catch { Debug.WriteLine("tried to stop debugging but failed"); }
+                        catch { Trace.WriteLine("tried to stop debugging but failed"); }
 
                     }
 
@@ -162,7 +162,7 @@ namespace BurntMemory
                                 {
                                     // TODO: this will totally break if breakpoint list modified during singlestep
                                     // YEP it breaks
-                                    //Debug.WriteLine("rip of singlestep exception: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
+                                    //Trace.WriteLine("rip of singlestep exception: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
                                     ReadWrite.WriteBytes(new ReadWrite.Pointer(lastbreakpointhit), new byte[] { 0xCC }, true);
                                 }
 
@@ -171,12 +171,12 @@ namespace BurntMemory
                                 break;
 
                             case PInvokes.EXCEPTION_BREAKPOINT:
-                                // Debug.WriteLine("checking breakpointlist");
+                                // Trace.WriteLine("checking breakpointlist");
                                 int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, _BreakpointListTemp);
                                 if (BreakpointHit >= 0)
                                 {
                                     dwContinueDebugEvent = PInvokes.DBG_CONTINUE;
-                                    // Debug.WriteLine("breakpoint hit! @ " + BreakpointHit.ToString());
+                                    // Trace.WriteLine("breakpoint hit! @ " + BreakpointHit.ToString());
                                     lastbreakpointhit = ExceptionDebugInfo.ExceptionRecord.ExceptionAddress;
                                     PInvokes.CONTEXT64 context64 = new()
                                     {
@@ -207,7 +207,7 @@ namespace BurntMemory
                                 }
                                 else
                                 {
-                                    Debug.WriteLine("Unhandled breakpoint at addy: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
+                                    Trace.WriteLine("Unhandled breakpoint at addy: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
                                 }
                                 break;
 
@@ -244,13 +244,13 @@ namespace BurntMemory
                     }
 
 
-                    // Debug.WriteLine("Exception: " + DebugEvent.dwDebugEventCode.ToString());
+                    // Trace.WriteLine("Exception: " + DebugEvent.dwDebugEventCode.ToString());
                     PInvokes.DEBUG_EVENT DebugEvent2 = (PInvokes.DEBUG_EVENT)Marshal.PtrToStructure(debugEventPtr, typeof(PInvokes.DEBUG_EVENT));
                     IntPtr debugInfoPtr2 = GetIntPtrFromByteArray(DebugEvent.u);
                     PInvokes.EXCEPTION_DEBUG_INFO ExceptionDebugInfo2 = (PInvokes.EXCEPTION_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.EXCEPTION_DEBUG_INFO));
                     string exceptionDebugStr2 = String.Format("EXCEPTION_DEBUG_EVENT: Exception Address: 0x{0:x}, Exception code: 0x{1:x}",
                         (ulong)ExceptionDebugInfo2.ExceptionRecord.ExceptionAddress, ExceptionDebugInfo2.ExceptionRecord.ExceptionCode);
-                    // Debug.WriteLine("debuginfo: " + exceptionDebugStr2);
+                    // Trace.WriteLine("debuginfo: " + exceptionDebugStr2);
 
                     // Resume executing the thread that reported the debugging event.
                     bool bb1 = PInvokes.ContinueDebugEvent((uint)DebugEvent.dwProcessId,

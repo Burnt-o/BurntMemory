@@ -49,6 +49,7 @@ namespace BurntMemory
 
 
         //attach process variables
+        public string? nameOfAttachedProcess = null;
         public Process? process = null;
         public IntPtr? processHandle; // ReadWrite will use this.. a lot
         public uint? ProcessID = null;
@@ -63,6 +64,17 @@ namespace BurntMemory
 
         public bool EvaluateModules() // TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
+
+            //need to refresh our Process object
+            try
+            {
+                this.process = Process.GetProcessesByName(nameOfAttachedProcess)[0];
+            }
+            catch 
+            {
+                Detach();
+                return false;
+            }
             ProcessModuleCollection? allmodules = this.process?.Modules;
 
             if (allmodules == null)
@@ -76,6 +88,7 @@ namespace BurntMemory
                 if (module.ModuleName != null)
                 {
                     this.modules[module.ModuleName] = module.BaseAddress;
+                    Trace.WriteLine(module.ModuleName);
                 }
             }
 
@@ -89,6 +102,7 @@ namespace BurntMemory
             {
                 this.process = Process.GetProcessesByName(process)[0];
                 this.processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, this.process.Id);
+                this.nameOfAttachedProcess = process;
                 this.OldProcessID = this.ProcessID;
                 this.ProcessID = (uint)this.process.Id;
                 this.attached = true;
@@ -96,6 +110,7 @@ namespace BurntMemory
                 EvaluateModules();
                 this.process.EnableRaisingEvents = true;
                 this.process.Exited += new EventHandler(AttachedProcess_Exited);
+
                 BurntMemory.DebugManager.needToStartDebugging = true;
                 return true;
             }
@@ -109,6 +124,7 @@ namespace BurntMemory
 
         public void Detach()
         {
+            this.nameOfAttachedProcess = null;
             this.process = null;
             this.processHandle = null;
             this.ProcessID = null;
