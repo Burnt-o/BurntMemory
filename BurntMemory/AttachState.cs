@@ -13,7 +13,7 @@ namespace BurntMemory
             _TryToAttachTimer.Elapsed += new ElapsedEventHandler(this.TryToAttachLoop);
             _TryToAttachTimer.Interval = 1000;
             _TryToAttachTimer.Enabled = false;
-            BurntMemory.Debugger dbg = BurntMemory.Debugger.Instance;
+            BurntMemory.DebugManager dbg = BurntMemory.DebugManager.Instance;
             dbg.DLL_LOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
             dbg.DLL_UNLOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
 
@@ -96,7 +96,7 @@ namespace BurntMemory
                 EvaluateModules();
                 this.process.EnableRaisingEvents = true;
                 this.process.Exited += new EventHandler(AttachedProcess_Exited);
-                BurntMemory.Debugger.needToStartDebugging = true;
+                BurntMemory.DebugManager.needToStartDebugging = true;
                 return true;
             }
             catch
@@ -119,7 +119,7 @@ namespace BurntMemory
 
         private void AttachedProcess_Exited(object? sender, System.EventArgs e)
         {
-            Debugger.needToStopDebugging = true; //tell debugger to stop debugging 
+            DebugManager.needToStopDebugging = true; //tell debugger to stop debugging 
             Detach();
             TryToAttachTimer.Enabled = true;
         }

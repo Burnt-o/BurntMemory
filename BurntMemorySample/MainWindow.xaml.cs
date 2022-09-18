@@ -12,7 +12,7 @@ namespace BurntMemorySample
     /// </summary>
     public partial class MainWindow : Window
     {
-        public BurntMemory.Debugger dbg = BurntMemory.Debugger.Instance;
+        public BurntMemory.DebugManager dbg = BurntMemory.DebugManager.Instance;
 
         public BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
 
@@ -156,7 +156,7 @@ namespace BurntMemorySample
                 }
 
                 // below stuff should probably be moved to the Debugger Library at some point as some kind of "cleanup debugger" function.
-                BurntMemory.Debugger.Instance.ClearBreakpoints();
+                BurntMemory.DebugManager.Instance.ClearBreakpoints();
             }
 
             this.dbg.ApplicationClosing = true;
