@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace BurntMemory
 {
-    public class SpeedhackManager
+    public static class SpeedhackManager
     {
 
-        private IntPtr? GetSpeedhackAddress()
+        private static IntPtr? GetSpeedhackAddress()
         {
             IntPtr? address = null;
             AttachState.Instance.EvaluateModules();
-                foreach (KeyValuePair<string, IntPtr?> kv in this.mem.modules)
+                foreach (KeyValuePair<string, IntPtr?> kv in AttachState.Instance.modules)
             {
                 if (kv.Key == "SpeedHack.dll")
                 { 
@@ -23,12 +23,13 @@ namespace BurntMemory
             return address;
         }
 
-        public bool SetSpeed(double speed)
+        public static bool SetSpeed(double speed)
         { 
         IntPtr? address = GetSpeedhackAddress();
             if (address == null)
             {
                 SpeedhackInjector.InjectSpeedhack();
+                Thread.Sleep(50);
                 address = GetSpeedhackAddress();
 
                 if (address == null)
@@ -36,9 +37,16 @@ namespace BurntMemory
                 
             }
                 
-            int offsetofcontrolvar = 0x100; //TODO: find out what the value is
-            ReadWrite.Pointer ptr = new ReadWrite.Pointer(address + offsetofcontrolvar);
-            return ReadWrite.WriteDouble(ptr, speed, true);
+            //these offsets will have to be updated whenever the speedhack dll is modified and rebuilt.
+            const int offset_newspeed = 0x6740;
+            const int offset_newspeedflag = 0x6738;
+            ReadWrite.Pointer ptr = new ReadWrite.Pointer(address + offset_newspeed);
+            if (ReadWrite.WriteDouble(ptr, speed, true))
+            { 
+            ptr = new ReadWrite.Pointer(address + offset_newspeedflag);
+                return ReadWrite.WriteBytes(ptr, (byte)1, true);
+            }
+            return false;
 
         }
 

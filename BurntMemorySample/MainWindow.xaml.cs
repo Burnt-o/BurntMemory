@@ -27,10 +27,8 @@ namespace BurntMemorySample
             this.mem.TryToAttachTimer.Enabled = true;
             this.mem.ForceAttach();
 
-            foreach (KeyValuePair<string, IntPtr?> kv in this.mem.modules)
-            {
-                Debug.WriteLine("module: " + kv.Key);
-            }
+
+
 
 
         }
@@ -166,7 +164,8 @@ namespace BurntMemorySample
 
         private void CheckboxSpeedhack_Click(object sender, RoutedEventArgs e)
         {
-            throw new NotImplementedException();
+            double value = (this.CheckboxSpeedhack.IsChecked == true) ? 10 : 1;
+            Debug.WriteLine("Speedhack set to " + value.ToString() + "?: " + SpeedhackManager.SetSpeed(value).ToString());
         }
 
  

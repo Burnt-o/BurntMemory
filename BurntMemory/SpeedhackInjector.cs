@@ -56,7 +56,7 @@ namespace BurntMemory
             IntPtr loadLibraryAddr = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
 
             // name of the dll we want to inject
-            string dllName = "SpeedHack.dll";
+            string dllName = "C:\\Users\\mauri\\source\\repos\\BurntMemory\\x64\\Release\\SpeedHack.dll";
 
             // alocating some memory on the target process - enough to store the name of the dll
             // and storing its address in a pointer
