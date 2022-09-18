@@ -49,7 +49,7 @@ namespace BurntMemory
 
 
         //attach process variables
-        private Process? process = null;
+        public Process? process = null;
         public IntPtr? processHandle; // ReadWrite will use this.. a lot
         public uint? ProcessID = null;
         public uint? OldProcessID = null; //used in debugger to make sure it can undebug the old process

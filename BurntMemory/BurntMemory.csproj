@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Speed-Hack\SpeedHack\SpeedHack.vcxproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="System.Net" />
     <Reference Include="System.Net.Http" />
   </ItemGroup>
