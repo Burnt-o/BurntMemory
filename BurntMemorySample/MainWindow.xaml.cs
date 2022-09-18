@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
 using System.Windows;
+using System.Collections.Generic;
 
 namespace BurntMemorySample
 {
@@ -24,6 +25,14 @@ namespace BurntMemorySample
             this.InitializeComponent();
             this.mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
             this.mem.TryToAttachTimer.Enabled = true;
+            this.mem.ForceAttach();
+
+            foreach (KeyValuePair<string, IntPtr?> kv in this.mem.modules)
+            {
+                Debug.WriteLine("module: " + kv.Key);
+            }
+
+
         }
 
 

@@ -70,12 +70,12 @@ namespace BurntMemory
                 return false;
             }
 
-            for (int i = 0; i < allmodules.Count; i++)
-            {
-                if (allmodules[i].ModuleName != null)
+
+            foreach (ProcessModule module in allmodules)
                 {
-                    this.modules[allmodules[i].ModuleName] = allmodules[i].BaseAddress;
-                    return true;
+                if (module.ModuleName != null)
+                {
+                    this.modules[module.ModuleName] = module.BaseAddress;
                 }
             }
 
