@@ -4,12 +4,11 @@ using Console = System.Diagnostics.Debug;
 
 namespace BurntMemory
 {
-    public partial class DebugManager
+    public partial class AttachState
     {
         public readonly Thread _DebugThread;
 
         // Singleton pattern
-        private static readonly DebugManager instance = new();
 
         private static List<Breakpoint> _BreakpointList = new();
 
@@ -19,23 +18,11 @@ namespace BurntMemory
 
         private static bool _StartDebugging = false;
 
-        private DebugManager()
-        {
-            // constructor
-            Console.WriteLine("Running debugger constructor");
-            this._DebugThread = new Thread(new ThreadStart(DebugThread.DebugOuterLoop));
-            this._DebugThread.Start();
-        }
-        // TODO: do I need this?
-        public static AttachState AttachState
-        {
-            get { return BurntMemory.AttachState.Instance; }
-        }
 
-        public static DebugManager Instance
-        {
-            get { return instance; }
-        }
+        // TODO: do I need this?
+
+
+
         public bool ApplicationClosing
         {
             get { return _ApplicationClosing; }
@@ -62,7 +49,7 @@ namespace BurntMemory
             {
                 if (bp.BreakpointName == BreakpointName)
                 {
-                    if (AttachState.Attached)
+                    if (Attached)
                     {
                         ReadWrite.WriteBytes(bp.Pointer, bp.originalCode, true);
                     }
@@ -74,7 +61,7 @@ namespace BurntMemory
 
         public bool SetBreakpoint(string BreakpointName, ReadWrite.Pointer ptr, Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint)
         {
-            if (AttachState.Attached)
+            if (Attached)
             {
                 RemoveBreakpoint(BreakpointName); //remove breakpoint if it was set before, we'll redo it here
                 byte[]? originalCode = ReadWrite.ReadBytes(ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
@@ -151,9 +138,9 @@ namespace BurntMemory
 
         public void GracefullyCloseDebugger()
         {
-            if (AttachState.Attached)
+            if (Attached)
             {
-                BurntMemory.DebugManager.Instance.ClearBreakpoints();
+                BurntMemory.AttachState.Instance.ClearBreakpoints();
             }
 
             this.ApplicationClosing = true; //a flag to tell the DebugThread to stop what it's doing after it's current loop

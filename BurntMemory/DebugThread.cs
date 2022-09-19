@@ -8,12 +8,10 @@ using System.Runtime.InteropServices;
 
 namespace BurntMemory
 {
-    public partial class DebugManager
+    public partial class AttachState
     {
-        private class DebugThread
-        {
 
-            public static void DebugOuterLoop()
+            public void DebugOuterLoop()
             {
                 while (!_ApplicationClosing)
                 {
@@ -25,7 +23,7 @@ namespace BurntMemory
                         {
                             try
                             {
-                                PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID); //remove debugger from process
+                                PInvokes.DebugActiveProcessStop((uint)ProcessID); //remove debugger from process
                             }
                             catch { }
                             debuggerIsOn = false;
@@ -34,11 +32,11 @@ namespace BurntMemory
                         {
                             try
                             {
-                                PInvokes.DebugActiveProcessStop((uint)AttachState.OldProcessID); //remove debugger from old process
+                                PInvokes.DebugActiveProcessStop((uint)OldProcessID); //remove debugger from old process
                             }
                             catch { }
 
-                            bool success = PInvokes.DebugActiveProcess((uint)AttachState.ProcessID); //setup debugger for new process
+                            bool success = PInvokes.DebugActiveProcess((uint)ProcessID); //setup debugger for new process
                             if (success)
                             {
                                 PInvokes.DebugSetProcessKillOnExit(false); //we don't want debugged process to die when we close our debugger
@@ -100,7 +98,7 @@ namespace BurntMemory
                         needToStopDebugging = false;
                         try
                         {
-                            PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID);
+                            PInvokes.DebugActiveProcessStop((uint)ProcessID);
                         }
                         catch { Trace.WriteLine("tried to run DebugActiveProcessStop but failed - process was probably closed"); }
 
@@ -109,11 +107,11 @@ namespace BurntMemory
 
                 }
                 //application that uses BurntMemory is closing! time to shutdown the thread
-                if (AttachState.Attached)
+                if (Attached)
                 {
                     try
                     {
-                        PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID);
+                        PInvokes.DebugActiveProcessStop((uint)ProcessID);
                     }
                     catch (Exception ex)
                     {
@@ -129,7 +127,7 @@ namespace BurntMemory
 
 
             private static IntPtr? lastbreakpointhit = null;
-            private static void DebugInnerLoop()
+            private void DebugInnerLoop()
             {
                 IntPtr? hThread = null;
                 bool bb = false;
@@ -166,7 +164,7 @@ namespace BurntMemory
                                     ReadWrite.WriteBytes(new ReadWrite.Pointer(lastbreakpointhit), new byte[] { 0xCC }, true);
                                 }
 
-                                PInvokes.FlushInstructionCache((IntPtr)AttachState.processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
+                                PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
                                 dwContinueDebugEvent = PInvokes.DBG_CONTINUE;
                                 break;
 
@@ -197,8 +195,8 @@ namespace BurntMemory
                                         context64.EFlags |= 0x100; // Set trap flag, to raise single-step exception
                                         PInvokes.SetThreadContext((IntPtr)hThread, ref context64); // TODO: how to handle this failing?
                                     }
-                                    PInvokes.FlushInstructionCache((IntPtr)AttachState.processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
-                                    // PInvokes.FlushInstructionCache((IntPtr)AttachState.processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
+                                    PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
+                                    // PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
 
                                     // actually I don't think we need our own threads here.
                                     // PInvokes.ResumeThread(hThread);
@@ -225,21 +223,21 @@ namespace BurntMemory
                         PInvokes.LOAD_DLL_DEBUG_INFO LoadDLLDebugInfo = (PInvokes.LOAD_DLL_DEBUG_INFO)Marshal.PtrToStructure(debugInfoPtr, typeof(PInvokes.LOAD_DLL_DEBUG_INFO));
                         PInvokes.CloseHandle(LoadDLLDebugInfo.hFile);
 
-                        //but while we're at it we'll pop an event saying a DLL was loaded (and info telling which one). AttachState will sub to this and revaluate all module addresses.
-                        Events.DLL_LOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
+                        //but while we're at it we'll pop an event saying a DLL was loaded (and info telling which one). AttachStateInstance will sub to this and revaluate all module addresses.
+                        Events.DLL_LOAD_EVENT_INVOKE(this, EventArgs.Empty);
 
                     }
                     else if (DebugEvent.dwDebugEventCode == PInvokes.UNLOAD_DLL_DEBUG_EVENT)
                     {
-                        Events.DLL_UNLOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
+                        Events.DLL_UNLOAD_EVENT_INVOKE(this, EventArgs.Empty);
                     }
                     else if (DebugEvent.dwDebugEventCode == PInvokes.CREATE_THREAD_DEBUG_EVENT)
                     {
-                        Events.THREAD_LOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
+                        Events.THREAD_LOAD_EVENT_INVOKE(this, EventArgs.Empty);
                     }
                     else if (DebugEvent.dwDebugEventCode == PInvokes.EXIT_THREAD_DEBUG_EVENT)
                     {
-                        Events.THREAD_UNLOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
+                        Events.THREAD_UNLOAD_EVENT_INVOKE(this, EventArgs.Empty);
 
                     }
 
@@ -259,7 +257,7 @@ namespace BurntMemory
                 }
 
 
-            }
+           
 
 
         }

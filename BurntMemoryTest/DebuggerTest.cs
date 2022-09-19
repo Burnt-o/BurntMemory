@@ -11,7 +11,7 @@ namespace BurntMemoryTest
     public class DebuggerTest
     {
         public BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
-        public BurntMemory.DebugManager dbg = BurntMemory.DebugManager.Instance;
+        public BurntMemory.AttachState dbg = BurntMemory.AttachState.Instance;
 
         [TestInitialize]
         public void SetUp()

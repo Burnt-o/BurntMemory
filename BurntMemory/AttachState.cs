@@ -16,7 +16,7 @@ double check how errors are handled when say, external process closed or not sta
 namespace BurntMemory
 {
     // A tiny state machine for attaching to an external process, and verifying attachment to that process
-    public sealed class AttachState
+    public sealed partial class AttachState
     {
         private AttachState()
         {
@@ -24,9 +24,14 @@ namespace BurntMemory
             _TryToAttachTimer.Elapsed += new ElapsedEventHandler(this.TryToAttachLoop);
             _TryToAttachTimer.Interval = 1000;
             _TryToAttachTimer.Enabled = false;
-            BurntMemory.DebugManager dbg = BurntMemory.DebugManager.Instance;
+            BurntMemory.AttachState dbg = BurntMemory.AttachState.Instance;
             Events.DLL_LOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
             Events.DLL_UNLOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
+            this._DebugThread = new Thread
+                (new ThreadStart
+                    (DebugOuterLoop)
+                );
+            this._DebugThread.Start();
 
         }
         private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
@@ -71,6 +76,7 @@ namespace BurntMemory
         {
             get { return _TryToAttachTimer; }
         }
+
 
 
         //attach process variables
@@ -143,7 +149,7 @@ namespace BurntMemory
                 this.process.EnableRaisingEvents = true;
                 this.process.Exited += new EventHandler(AttachedProcess_Exited);
 
-                BurntMemory.DebugManager.needToStartDebugging = true;
+                BurntMemory.AttachState.needToStartDebugging = true;
                 return true;
             }
             catch
@@ -167,7 +173,7 @@ namespace BurntMemory
 
         private void AttachedProcess_Exited(object? sender, System.EventArgs e)
         {
-            DebugManager.needToStopDebugging = true; //tell debugger to stop debugging 
+            AttachState.needToStopDebugging = true; //tell debugger to stop debugging 
             Detach();
             TryToAttachTimer.Enabled = true;
         }

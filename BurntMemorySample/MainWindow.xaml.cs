@@ -13,7 +13,7 @@ namespace BurntMemorySample
     /// </summary>
     public partial class MainWindow : Window
     {
-        public BurntMemory.DebugManager dbg = BurntMemory.DebugManager.Instance;
+        public BurntMemory.AttachState dbg = BurntMemory.AttachState.Instance;
 
         public BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
 
