@@ -2,6 +2,17 @@
 using System.Timers;
 using Console = System.Diagnostics.Debug;
 
+
+
+/* TODO LIST:
+split custom events to their own class
+    add a couple more events for AttachState.Attach and AttachState.Detach
+run another code cleanup
+add more documentation via comments
+double check how errors are handled when say, external process closed or not started.
+
+
+*/
 namespace BurntMemory
 {
     // A tiny state machine for attaching to an external process, and verifying attachment to that process
@@ -14,8 +25,8 @@ namespace BurntMemory
             _TryToAttachTimer.Interval = 1000;
             _TryToAttachTimer.Enabled = false;
             BurntMemory.DebugManager dbg = BurntMemory.DebugManager.Instance;
-            dbg.DLL_LOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
-            dbg.DLL_UNLOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
+            Events.DLL_LOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
+            Events.DLL_UNLOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
 
         }
         private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
@@ -32,6 +43,18 @@ namespace BurntMemory
         public bool Attached
         {
             get { return this.attached; }
+            set { 
+                this.attached = value;
+                if (value)
+                {
+                    Events.ATTACH_EVENT_INVOKE(this, EventArgs.Empty);
+                }
+                else 
+                { 
+                    Events.DEATTACH_EVENT_INVOKE(this, EventArgs.Empty); 
+                }
+            }
+
         }
 
         public bool ReloadModulesOnDLLEvent = false;
@@ -104,6 +127,7 @@ namespace BurntMemory
         }
 
 
+
         private bool Attach(string process)
         {
             try
@@ -113,7 +137,7 @@ namespace BurntMemory
                 this.nameOfAttachedProcess = process;
                 this.OldProcessID = this.ProcessID;
                 this.ProcessID = (uint)this.process.Id;
-                this.attached = true;
+                Attached = true;
                 this.modules["main"] = this.process.MainModule?.BaseAddress;
                 EvaluateModules();
                 this.process.EnableRaisingEvents = true;
@@ -136,7 +160,7 @@ namespace BurntMemory
             this.process = null;
             this.processHandle = null;
             this.ProcessID = null;
-            this.attached = false;
+            Attached = false;
             this.modules["main"] = null;
         }
 

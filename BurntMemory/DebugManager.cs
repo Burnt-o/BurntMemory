@@ -138,44 +138,7 @@ namespace BurntMemory
 
 
 
-        public event EventHandler? DLL_LOAD_EVENT;
-        protected virtual void DLL_LOAD_DEBUG_EVENT(EventArgs e)
-        {
-            EventHandler? handler = DLL_LOAD_EVENT;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-        }
-
-        public event EventHandler? DLL_UNLOAD_EVENT;
-        protected virtual void DLL_UNLOAD_DEBUG_EVENT(EventArgs e)
-        {
-            EventHandler? handler = DLL_UNLOAD_EVENT;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-        }
-        public event EventHandler? THREAD_LOAD_EVENT;
-        protected virtual void THREAD_LOAD_DEBUG_EVENT(EventArgs e)
-        {
-            EventHandler? handler = THREAD_LOAD_EVENT;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-        }
-
-        public event EventHandler? THREAD_UNLOAD_EVENT;
-        protected virtual void THREAD_UNLOAD_DEBUG_EVENT(EventArgs e)
-        {
-            EventHandler? handler = THREAD_UNLOAD_EVENT;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-        }
+    
 
 
         private static IntPtr GetIntPtrFromByteArray(byte[] byteArray)

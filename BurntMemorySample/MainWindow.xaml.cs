@@ -23,6 +23,8 @@ namespace BurntMemorySample
         {
             // AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
             this.InitializeComponent();
+            Events.ATTACH_EVENT += new EventHandler(Handle_Attach);
+            Events.DEATTACH_EVENT += new EventHandler(Handle_Detach);
             this.mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
             this.mem.TryToAttachTimer.Enabled = true;
             this.mem.ForceAttach();
@@ -31,6 +33,34 @@ namespace BurntMemorySample
 
 
 
+        }
+
+        private void Handle_Attach(object? sender, EventArgs? e)
+        {
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SetUI(true);
+            }));
+            
+        }
+
+        private void Handle_Detach(object? sender, EventArgs? e)
+        {
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SetUI(false);
+            }));
+        }
+
+        private void SetUI(bool truth)
+        {
+            this.Effect1Checkpoint.IsEnabled = truth;
+            this.Effect2Revert.IsEnabled = truth;
+            this.Effect3Coresave.IsEnabled = truth;
+            this.Effect4Coreload.IsEnabled = truth;
+            this.Effect5Invuln.IsEnabled = truth;
+            this.Effect6Speedhack.IsEnabled = truth;
+            this.Effect7Medusa.IsEnabled = truth;
         }
 
 

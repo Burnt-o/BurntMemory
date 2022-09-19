@@ -102,7 +102,7 @@ namespace BurntMemory
                         {
                             PInvokes.DebugActiveProcessStop((uint)AttachState.ProcessID);
                         }
-                        catch { Trace.WriteLine("tried to stop debugging but failed"); }
+                        catch { Trace.WriteLine("tried to run DebugActiveProcessStop but failed - process was probably closed"); }
 
                     }
 
@@ -226,20 +226,20 @@ namespace BurntMemory
                         PInvokes.CloseHandle(LoadDLLDebugInfo.hFile);
 
                         //but while we're at it we'll pop an event saying a DLL was loaded (and info telling which one). AttachState will sub to this and revaluate all module addresses.
-                        DebugManager.Instance.DLL_LOAD_DEBUG_EVENT(EventArgs.Empty);
+                        Events.DLL_LOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
 
                     }
                     else if (DebugEvent.dwDebugEventCode == PInvokes.UNLOAD_DLL_DEBUG_EVENT)
                     {
-                        DebugManager.Instance.DLL_UNLOAD_DEBUG_EVENT(EventArgs.Empty);
+                        Events.DLL_UNLOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
                     }
                     else if (DebugEvent.dwDebugEventCode == PInvokes.CREATE_THREAD_DEBUG_EVENT)
                     {
-                        DebugManager.Instance.THREAD_LOAD_DEBUG_EVENT(EventArgs.Empty);
+                        Events.THREAD_LOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
                     }
                     else if (DebugEvent.dwDebugEventCode == PInvokes.EXIT_THREAD_DEBUG_EVENT)
                     {
-                        DebugManager.Instance.THREAD_UNLOAD_DEBUG_EVENT(EventArgs.Empty);
+                        Events.THREAD_UNLOAD_EVENT_INVOKE(DebugManager.Instance, EventArgs.Empty);
 
                     }
 
