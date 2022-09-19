@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace BurntMemory
 {
-    public static class SpeedhackManager
+    public partial class AttachState
     {
 
-        private static IntPtr? GetSpeedhackAddress()
+        private IntPtr? GetSpeedhackAddress()
         {
             IntPtr? address = null;
-            AttachState.Instance.EvaluateModules();
-                foreach (KeyValuePair<string, IntPtr?> kv in AttachState.Instance.modules)
+            EvaluateModules();
+                foreach (KeyValuePair<string, IntPtr?> kv in modules)
             {
                 if (kv.Key == "SpeedHack.dll")
                 { 
@@ -23,7 +23,7 @@ namespace BurntMemory
             return address;
         }
 
-        public static void RemoveSpeedHack() //basically same as SetSpeed but without trying to inject the dll. TODO: make this actually unload the DLL if it's in there and we're still attached.
+        public void RemoveSpeedHack() //basically same as SetSpeed but without trying to inject the dll. TODO: make this actually unload the DLL if it's in there and we're still attached.
         {
             IntPtr? address = GetSpeedhackAddress();
             if (address != null)
@@ -31,21 +31,21 @@ namespace BurntMemory
                 const int offset_newspeed = 0x6740;
                 const int offset_newspeedflag = 0x6738;
                 ReadWrite.Pointer ptr = new ReadWrite.Pointer(address + offset_newspeed);
-                if (ReadWrite.WriteDouble(ptr, 1, true))
+                if (ReadWrite.WriteDouble(this, ptr, 1, true))
                 {
                     ptr = new ReadWrite.Pointer(address + offset_newspeedflag);
-                    ReadWrite.WriteBytes(ptr, (byte)1, true);
+                    ReadWrite.WriteBytes(this, ptr, (byte)1, true);
                 }
             }
         }
 
 
-        public static bool SetSpeed(double speed)
+        public bool SetSpeed(double speed)
         { 
         IntPtr? address = GetSpeedhackAddress();
             if (address == null)
             {
-                SpeedhackInjector.InjectSpeedhack();
+                InjectSpeedhack();
                 Thread.Sleep(50);
                 address = GetSpeedhackAddress();
 
@@ -58,10 +58,10 @@ namespace BurntMemory
             const int offset_newspeed = 0x6740;
             const int offset_newspeedflag = 0x6738;
             ReadWrite.Pointer ptr = new ReadWrite.Pointer(address + offset_newspeed);
-            if (ReadWrite.WriteDouble(ptr, speed, true))
+            if (ReadWrite.WriteDouble(this, ptr, speed, true))
             { 
             ptr = new ReadWrite.Pointer(address + offset_newspeedflag);
-                return ReadWrite.WriteBytes(ptr, (byte)1, true);
+                return ReadWrite.WriteBytes(this, ptr, (byte)1, true);
             }
             return false;
 

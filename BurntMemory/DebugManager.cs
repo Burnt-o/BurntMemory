@@ -33,9 +33,9 @@ namespace BurntMemory
         {
             foreach (Breakpoint bp in _BreakpointList)
             {
-                if (ReadWrite.ReadBytes(bp.Pointer, 1)?[0] == 0xCC)
+                if (ReadWrite.ReadBytes(this, bp.Pointer, 1)?[0] == 0xCC)
                 {
-                    ReadWrite.WriteBytes(bp.Pointer, bp.originalCode, true);
+                    ReadWrite.WriteBytes(this, bp.Pointer, bp.originalCode, true);
                 }
             }
             _BreakpointList.Clear();
@@ -51,7 +51,7 @@ namespace BurntMemory
                 {
                     if (Attached)
                     {
-                        ReadWrite.WriteBytes(bp.Pointer, bp.originalCode, true);
+                        ReadWrite.WriteBytes(this, bp.Pointer, bp.originalCode, true);
                     }
                     _BreakpointList.Remove(bp);
                 }
@@ -64,7 +64,7 @@ namespace BurntMemory
             if (Attached)
             {
                 RemoveBreakpoint(BreakpointName); //remove breakpoint if it was set before, we'll redo it here
-                byte[]? originalCode = ReadWrite.ReadBytes(ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
+                byte[]? originalCode = ReadWrite.ReadBytes(this, ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
                 Trace.WriteLine("originalCode for bp: " + ptr.ToString() + ", oc: " + originalCode?[0].ToString());
 
                 if (originalCode == null)
@@ -83,7 +83,7 @@ namespace BurntMemory
             return false;
         }
 
-        private static int BreakpointListContains(IntPtr addy, List<Breakpoint> BPList)
+        private int BreakpointListContains(IntPtr addy, List<Breakpoint> BPList)
         {
             if (BPList == null)
             {
@@ -97,7 +97,7 @@ namespace BurntMemory
 
             for (int i = 0; i < BPList.Count; i++)
             {
-                if (ReadWrite.ResolvePointer(BPList[i].Pointer) == addy)
+                if (ReadWrite.ResolvePointer(this, BPList[i].Pointer) == addy)
                 {
                     return i;
                 }
@@ -140,7 +140,7 @@ namespace BurntMemory
         {
             if (Attached)
             {
-                BurntMemory.AttachState.Instance.ClearBreakpoints();
+                this.ClearBreakpoints();
             }
 
             this.ApplicationClosing = true; //a flag to tell the DebugThread to stop what it's doing after it's current loop

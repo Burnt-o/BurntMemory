@@ -1,19 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System;
-using System.Diagnostics;
+﻿using System.Text;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.IO;
-using System.Reflection;
-using System.Security.Policy;
+
 
 namespace BurntMemory
 {
-    public static class SpeedhackInjector
+    public partial class AttachState
     
         //TODO move these over to PInvokes
         {
@@ -49,10 +40,9 @@ namespace BurntMemory
         const uint MEM_RESERVE = 0x00002000;
         const uint PAGE_READWRITE = 4;
 
-        public static bool InjectSpeedhack()
+        public bool InjectSpeedhack()
         {
-            AttachState mem = AttachState.Instance;
-            if (mem.Attached == false)
+            if (Attached == false)
             {
                 return false;
             }          
@@ -70,14 +60,14 @@ namespace BurntMemory
 
             // alocating some memory on the target process - enough to store the name of the dll
             // and storing its address in a pointer
-            IntPtr allocMemAddress = VirtualAllocEx((IntPtr)mem.processHandle, IntPtr.Zero, (uint)((dllPath.Length + 1) * Marshal.SizeOf(typeof(char))), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            IntPtr allocMemAddress = VirtualAllocEx((IntPtr)processHandle, IntPtr.Zero, (uint)((dllPath.Length + 1) * Marshal.SizeOf(typeof(char))), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
             // writing the name of the dll there
             BurntMemory.ReadWrite.Pointer ptr = new ReadWrite.Pointer(allocMemAddress);
-            BurntMemory.ReadWrite.WriteBytes(ptr, Encoding.Default.GetBytes(dllPath), true);
+            BurntMemory.ReadWrite.WriteBytes(this, ptr, Encoding.Default.GetBytes(dllPath), true);
 
             // creating a thread that will call LoadLibraryA with allocMemAddress as argument
-            CreateRemoteThread((IntPtr)mem.processHandle, IntPtr.Zero, 0, loadLibraryAddr, allocMemAddress, 0, IntPtr.Zero);
+            CreateRemoteThread((IntPtr)processHandle, IntPtr.Zero, 0, loadLibraryAddr, allocMemAddress, 0, IntPtr.Zero);
 
             return true;
         }

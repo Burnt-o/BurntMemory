@@ -11,6 +11,8 @@ namespace BurntMemory
     public partial class AttachState
     {
 
+        private uint _debuggedProcessID;
+
             public void DebugOuterLoop()
             {
                 while (!_ApplicationClosing)
@@ -23,22 +25,24 @@ namespace BurntMemory
                         {
                             try
                             {
-                                PInvokes.DebugActiveProcessStop((uint)ProcessID); //remove debugger from process
+                                PInvokes.DebugActiveProcessStop(_debuggedProcessID); //remove debugger from process
                             }
                             catch { }
+                        //actually this could fail if ProcessID is set to null.
                             debuggerIsOn = false;
                         }
                         else //need to turn debugger on
                         {
                             try
                             {
-                                PInvokes.DebugActiveProcessStop((uint)OldProcessID); //remove debugger from old process
+                                PInvokes.DebugActiveProcessStop(_debuggedProcessID); //remove debugger from old process
                             }
                             catch { }
 
-                            bool success = PInvokes.DebugActiveProcess((uint)ProcessID); //setup debugger for new process
+                            bool success = ProcessID != null && PInvokes.DebugActiveProcess((uint)ProcessID); //setup debugger for new process
                             if (success)
                             {
+                            _debuggedProcessID = (uint)ProcessID;
                                 PInvokes.DebugSetProcessKillOnExit(false); //we don't want debugged process to die when we close our debugger
                                 debuggerIsOn = true;
                             }
@@ -63,7 +67,7 @@ namespace BurntMemory
                             resetBreakpoints = false;
                             for (int i = 0; i < _BreakpointList.Count; i++)
                             {
-                                if (ReadWrite.ReadBytes(_BreakpointList[i].Pointer)?[0] != 0xCC)
+                                if (ReadWrite.ReadBytes(this, _BreakpointList[i].Pointer)?[0] != 0xCC)
                                 {
                                     Breakpoint temp = new Breakpoint(_BreakpointList[i].BreakpointName, _BreakpointList[i].Pointer, _BreakpointList[i].onBreakpoint, _BreakpointList[i].originalCode, false);
                                     _BreakpointList[i] = temp;
@@ -80,7 +84,7 @@ namespace BurntMemory
                             {
                                 if (_BreakpointList[i].CCwritten == false)
                                 {
-                                    if (ReadWrite.WriteBytes(_BreakpointList[i].Pointer, new byte[] { 0xCC }, true))
+                                    if (ReadWrite.WriteBytes(this, _BreakpointList[i].Pointer, new byte[] { 0xCC }, true))
                                     {
                                         Breakpoint temp = new Breakpoint(_BreakpointList[i].BreakpointName, _BreakpointList[i].Pointer, _BreakpointList[i].onBreakpoint, _BreakpointList[i].originalCode, true);
                                         _BreakpointList[i] = temp;
@@ -161,7 +165,7 @@ namespace BurntMemory
                                     // TODO: this will totally break if breakpoint list modified during singlestep
                                     // YEP it breaks
                                     //Trace.WriteLine("rip of singlestep exception: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
-                                    ReadWrite.WriteBytes(new ReadWrite.Pointer(lastbreakpointhit), new byte[] { 0xCC }, true);
+                                    ReadWrite.WriteBytes(this, new ReadWrite.Pointer(lastbreakpointhit), new byte[] { 0xCC }, true);
                                 }
 
                                 PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
@@ -190,7 +194,7 @@ namespace BurntMemory
                                         // do custom function things
                                         context64 = _BreakpointListTemp[BreakpointHit].onBreakpoint(context64);
 
-                                        ReadWrite.WriteBytes(_BreakpointListTemp[BreakpointHit].Pointer, _BreakpointListTemp[BreakpointHit].originalCode, true); // TODO: how to handle this failing?
+                                        ReadWrite.WriteBytes(this, _BreakpointListTemp[BreakpointHit].Pointer, _BreakpointListTemp[BreakpointHit].originalCode, true); // TODO: how to handle this failing?
                                         context64.Rip--; // go back an instruction to execute original code
                                         context64.EFlags |= 0x100; // Set trap flag, to raise single-step exception
                                         PInvokes.SetThreadContext((IntPtr)hThread, ref context64); // TODO: how to handle this failing?

@@ -5,26 +5,30 @@ using Console = System.Diagnostics.Debug;
 
 
 /* TODO LIST:
-split custom events to their own class
-    add a couple more events for AttachState.Attach and AttachState.Detach
-run another code cleanup
+
+
+
+
+add better dealing with nullability
+cleanup fields and properties
 add more documentation via comments
 double check how errors are handled when say, external process closed or not started.
-
+make sure any handles are cleaned up when attachstate closes 
+implement a destructor instead of our hacky on-application-close stuff
 
 */
 namespace BurntMemory
 {
     // A tiny state machine for attaching to an external process, and verifying attachment to that process
-    public sealed partial class AttachState
+    public partial class AttachState
     {
-        private AttachState()
+        public AttachState()
         {
             // Constructor
             _TryToAttachTimer.Elapsed += new ElapsedEventHandler(this.TryToAttachLoop);
             _TryToAttachTimer.Interval = 1000;
             _TryToAttachTimer.Enabled = false;
-            BurntMemory.AttachState dbg = BurntMemory.AttachState.Instance;
+
             Events.DLL_LOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
             Events.DLL_UNLOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
             this._DebugThread = new Thread
@@ -33,23 +37,18 @@ namespace BurntMemory
                 );
             this._DebugThread.Start();
 
-        }
-        private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
 
-        // Singleton pattern
-        private static readonly AttachState instance = new();
-        public static AttachState Instance
-        {
-            get { return instance; }
         }
+        
+
 
         //stuff to handle looping attach and control logic
-        private bool attached = false;
+        private bool _attached = false;
         public bool Attached
         {
-            get { return this.attached; }
-            set { 
-                this.attached = value;
+            get { return this._attached; }
+            private set { 
+                this._attached = value;
                 if (value)
                 {
                     Events.ATTACH_EVENT_INVOKE(this, EventArgs.Empty);
@@ -72,21 +71,34 @@ namespace BurntMemory
             set { this.processesToAttach = value; }
         }
 
+        private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
         public System.Timers.Timer TryToAttachTimer
         {
             get { return _TryToAttachTimer; }
         }
 
+        public IntPtr? processHandle
+        {
+            get { return _processHandle; }
+            set { _processHandle = value; }
+        }
 
 
         //attach process variables
-        public string? nameOfAttachedProcess = null;
-        public Process? process = null;
-        public IntPtr? processHandle; // ReadWrite will use this.. a lot
-        public uint? ProcessID = null;
-        public uint? OldProcessID = null; //used in debugger to make sure it can undebug the old process
+        private string? nameOfAttachedProcess = null;
+        private Process? process = null;
+        private IntPtr? _processHandle; // ReadWrite will use this.. a lot
+        private uint? ProcessID = null;
+        private uint? OldProcessID = null; //used in debugger to make sure it can undebug the old process
 
-        public Dictionary<string, IntPtr?> modules = new(); // List of process modules and their base addresses. the main module is stored under key "main". All modules first evaluated on successful Attach(), non-main modules re-evaluated by debugger (DLL load/unload) or ReEvaluateModules() 
+        //public Dictionary<string, IntPtr?> modules = new(); // List of process modules and their base addresses. the main module is stored under key "main". All modules first evaluated on successful Attach(), non-main modules re-evaluated by debugger (DLL load/unload) or ReEvaluateModules() 
+        private Dictionary<string, IntPtr?> _modules = new();
+        public Dictionary<string, IntPtr?> modules 
+        {
+            get { return _modules; }
+            private set { _modules = value; }
+        }
+
 
         private void HandleDLLReload(object? sender, System.EventArgs e)
         {

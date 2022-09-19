@@ -6,10 +6,6 @@ namespace BurntMemory
     public static class ReadWrite
     {
         // TODO: do I need this?
-        public static AttachState AttachState
-        {
-            get { return BurntMemory.AttachState.Instance; }
-        }
 
         public class Pointer
         {
@@ -78,7 +74,7 @@ namespace BurntMemory
             }
         }
 
-        public static IntPtr? ResolvePointer(Pointer? ptr)
+        public static IntPtr? ResolvePointer(AttachState state, Pointer? ptr)
         {
             if (ptr == null)
             {
@@ -94,39 +90,39 @@ namespace BurntMemory
             {
                 if (ptr.BaseAddress != null)
                 {
-                    return ResolvePointer((IntPtr)ptr.BaseAddress, ptr.Offsets);
+                    return ResolvePointer(state, (IntPtr)ptr.BaseAddress, ptr.Offsets);
                 }
 
                 if (ptr.Modulename != null)
                 {
-                    return ResolvePointer((string)ptr.Modulename, (int[])ptr.Offsets);
+                    return ResolvePointer(state, (string)ptr.Modulename, (int[])ptr.Offsets);
                 }
 
-                return ResolvePointer(IntPtr.Zero, (int[])ptr.Offsets);
+                return ResolvePointer(state, IntPtr.Zero, (int[])ptr.Offsets);
             }
             return null;
         }
 
         // TODO: double check this makes sense with multi level pointers
-        private static IntPtr? ResolvePointer(string modulename, int[]? offsets)
+        private static IntPtr? ResolvePointer(AttachState state, string modulename, int[]? offsets)
         {
-            if (AttachState.modules[modulename] == null)
+            if (state.modules[modulename] == null)
             {
                 return null;
             }
 
-            IntPtr? baseAddress = AttachState.modules[modulename];
-            return ResolvePointer(baseAddress, offsets);
+            IntPtr? baseAddress = state.modules[modulename];
+            return ResolvePointer(state, baseAddress, offsets);
         }
 
         // TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
         // TODO: should probably make the incomming baseaddress nullable?
         // TODO: test multi-level pointers
-        private static IntPtr? ResolvePointer(IntPtr? baseAddress, int[]? offsets)
+        private static IntPtr? ResolvePointer(AttachState state, IntPtr? baseAddress, int[]? offsets)
         {
             if (baseAddress == null)
             {
-                baseAddress = AttachState.modules["main"];
+                baseAddress = state.modules["main"];
                 if (baseAddress == null)
                 {
                     return null;
@@ -150,92 +146,92 @@ namespace BurntMemory
 
             foreach (int i in offsets)
             {
-                ptr = IntPtr.Add(new IntPtr((long)ReadQword(new Pointer(ptr)).GetValueOrDefault()), i);
+                ptr = IntPtr.Add(new IntPtr((long)ReadQword(state, new Pointer(ptr)).GetValueOrDefault()), i);
             }
 
             return ptr;
         }
 
-        public static UInt32? ReadInteger(Pointer? ptr)
+        public static UInt32? ReadInteger(AttachState state, Pointer? ptr)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return null;
             }
 
             byte[] data = new byte[4];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, data, 4, out int bytesRead)) ? BitConverter.ToUInt32(data, 0) : null;
         }
 
-        public static UInt64? ReadQword(Pointer? ptr)
+        public static UInt64? ReadQword(AttachState state, Pointer? ptr)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return null;
             }
 
             byte[] data = new byte[8];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, data, 8, out int bytesRead)) ? (ulong)BitConverter.ToInt64(data, 0) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, data, 8, out int bytesRead)) ? (ulong)BitConverter.ToInt64(data, 0) : null;
         }
 
-        public static byte[]? ReadBytes(Pointer? ptr, uint length = 1)
+        public static byte[]? ReadBytes(AttachState state, Pointer? ptr, uint length = 1)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return null;
             }
 
             byte[]? data = new byte[length];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? data : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? data : null;
         }
 
 
-        public static float? ReadFloat (Pointer? ptr)
+        public static float? ReadFloat (AttachState state, Pointer? ptr)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return null;
             }
 
             byte[]? data = new byte[4];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? BitConverter.ToSingle(data) : null; 
+            return (PInvokes.ReadProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? BitConverter.ToSingle(data) : null; 
         }
 
-        public static double? ReadDouble(Pointer? ptr)
+        public static double? ReadDouble(AttachState state, Pointer? ptr)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return null;
             }
 
             byte[]? data = new byte[8];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? BitConverter.ToDouble(data) : null; 
+            return (PInvokes.ReadProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? BitConverter.ToDouble(data) : null; 
         }
 
         // TODO: add a unicode option
-        public static string? ReadString(Pointer? ptr, uint length, bool unicode)
+        public static string? ReadString(AttachState state, Pointer? ptr, uint length, bool unicode)
         {
             Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return null;
             }
 
             byte[] data = new byte[length];
-            return (PInvokes.ReadProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? encoding.GetString(data) : null;
+            return (PInvokes.ReadProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, data, data.Length, out int bytesRead)) ? encoding.GetString(data) : null;
         }
 
         // TODO: instead of just having a success boolean, we should instead return error codes (zero if no error)
-        public static bool WriteInteger(Pointer? ptr, UInt32 value, bool isProtected)
+        public static bool WriteInteger(AttachState state, Pointer? ptr, UInt32 value, bool isProtected)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return false;
             }
@@ -243,22 +239,22 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 4, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 4, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
             }
 
             return success;
         }
 
-        public static bool WriteQword(Pointer? ptr, UInt64 value, bool isProtected)
+        public static bool WriteQword(AttachState state, Pointer? ptr, UInt64 value, bool isProtected)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return false;
             }
@@ -266,32 +262,32 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 8, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 8, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
             }
 
             return success;
         }
 
-        public static bool WriteBytes(Pointer? ptr, int value, bool isProtected)
+        public static bool WriteBytes(AttachState state, Pointer? ptr, int value, bool isProtected)
         {
-            return WriteBytes(ptr, new byte[] { (byte)value }, isProtected);
+            return WriteBytes(state, ptr, new byte[] { (byte)value }, isProtected);
         }
 
-        public static bool WriteBytes(Pointer? ptr, byte value, bool isProtected)
+        public static bool WriteBytes(AttachState state, Pointer? ptr, byte value, bool isProtected)
         {
-            return WriteBytes(ptr, new byte[] { value }, isProtected);
+            return WriteBytes(state, ptr, new byte[] { value }, isProtected);
         }
 
-        public static bool WriteBytes(Pointer? ptr, byte[] value, bool isProtected)
+        public static bool WriteBytes(AttachState state, Pointer? ptr, byte[] value, bool isProtected)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return false;
             }
@@ -299,22 +295,22 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, value.Length, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, value.Length, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, value.Length, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, value.Length, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, value, value.Length, out int bytesWritten);
             }
 
             return success;
         }
 
-        public static bool WriteFloat(Pointer? ptr, float value, bool isProtected)
+        public static bool WriteFloat(AttachState state, Pointer? ptr, float value, bool isProtected)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return false;
             }
@@ -322,22 +318,22 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 4, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 4, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 4, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 4, out int bytesWritten);
             }
 
             return success;
         }
 
-        public static bool WriteDouble(Pointer? ptr, double value, bool isProtected)
+        public static bool WriteDouble(AttachState state, Pointer? ptr, double value, bool isProtected)
         {
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return false;
             }
@@ -345,29 +341,29 @@ namespace BurntMemory
             bool success;
             if (isProtected)
             {
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 8, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
-                PInvokes.VirtualProtectEx((IntPtr)AttachState.processHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 8, PInvokes.PAGE_READWRITE, out uint lpflOldProtect);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                PInvokes.VirtualProtectEx((IntPtr)state.processHandle, (IntPtr)addy, 8, lpflOldProtect, out uint lpflOldProtect2);
             }
             else
             {
-                success = PInvokes.WriteProcessMemory((IntPtr)AttachState.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
+                success = PInvokes.WriteProcessMemory((IntPtr)state.processHandle, (IntPtr)addy, BitConverter.GetBytes(value), 8, out int bytesWritten);
             }
 
             return success;
         }
 
-        public static bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected, bool unicode)
+        public static bool WriteString(AttachState state, Pointer? ptr, string stringtowrite, bool isProtected, bool unicode)
         {
             Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
-            IntPtr? addy = ResolvePointer(ptr);
-            if (addy == null || AttachState.processHandle == null)
+            IntPtr? addy = ResolvePointer(state, ptr);
+            if (addy == null || state.processHandle == null)
             {
                 return false;
             }
 
             byte[] value = encoding.GetBytes(stringtowrite);
-            return WriteBytes(new Pointer((IntPtr)addy), value, isProtected);
+            return WriteBytes(state, new Pointer((IntPtr)addy), value, isProtected);
         }
     }
 }

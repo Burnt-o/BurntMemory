@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BurntMemory
 {
-    public static class Events
+    public class Events
     {
 
 

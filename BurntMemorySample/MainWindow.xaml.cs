@@ -13,9 +13,8 @@ namespace BurntMemorySample
     /// </summary>
     public partial class MainWindow : Window
     {
-        public BurntMemory.AttachState dbg = BurntMemory.AttachState.Instance;
 
-        public BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
+        private AttachState mem = new();
 
         private UInt64 playeraddy = 0;
 
@@ -69,16 +68,16 @@ namespace BurntMemorySample
             Trace.WriteLine("I'm out of here");
             if (this.mem.Attached)
             {
-                if (ReadWrite.ReadBytes(Pointers.Medusa, 1)?[0] == 1)
+                if (ReadWrite.ReadBytes(this.mem, Pointers.Medusa, 1)?[0] == 1)
                 {
-                    ReadWrite.WriteBytes(Pointers.Medusa, 0, false);
+                    ReadWrite.WriteBytes(this.mem, Pointers.Medusa, 0, false);
                 }  
             }
-            SpeedhackManager.RemoveSpeedHack();
-            this.dbg.GracefullyCloseDebugger();
+            this.mem.RemoveSpeedHack();
+            this.mem.GracefullyCloseDebugger();
         }
 
-        private static void PrintMessage(string message)
+        private void PrintMessage(string message)
         {
             // trim to 62 chars
             message = message.Length > 62 ? message[..61] : message;
@@ -86,14 +85,14 @@ namespace BurntMemorySample
             // add whitespace to fill up the 62 chars
             message = message.Length < 62 ? message.PadRight(62) : message;
 
-            uint? tickcount = ReadWrite.ReadInteger(Pointers.Tickcount);
+            uint? tickcount = ReadWrite.ReadInteger(this.mem, Pointers.Tickcount);
             Trace.WriteLine("tickcount: " + tickcount.ToString());
             if (tickcount != null)
             {
-                Trace.WriteLine("1: " + ReadWrite.WriteInteger(Pointers.MessageTC, (uint)tickcount, true).ToString());
-                Trace.WriteLine("2: " + ReadWrite.WriteString(Pointers.MessageTC + Offsets.MessageText, message, true, true).ToString());
-                Trace.WriteLine("3: " + ReadWrite.WriteBytes(Pointers.MessageTC + Offsets.MessageFlag, new byte[] { 0, 0, 1, 0 }, true).ToString());
-                Trace.WriteLine("4: " + ReadWrite.WriteInteger(Pointers.MessageTC + Offsets.MessageInt, 0xFFFFFFFF, true).ToString());
+                Trace.WriteLine("1: " + ReadWrite.WriteInteger(this.mem, Pointers.MessageTC, (uint)tickcount, true).ToString());
+                Trace.WriteLine("2: " + ReadWrite.WriteString(this.mem, Pointers.MessageTC + Offsets.MessageText, message, true, true).ToString());
+                Trace.WriteLine("3: " + ReadWrite.WriteBytes(this.mem, Pointers.MessageTC + Offsets.MessageFlag, new byte[] { 0, 0, 1, 0 }, true).ToString());
+                Trace.WriteLine("4: " + ReadWrite.WriteInteger(this.mem, Pointers.MessageTC + Offsets.MessageInt, 0xFFFFFFFF, true).ToString());
             }
         }
 
@@ -110,7 +109,7 @@ namespace BurntMemorySample
                 {
                     if (this.CheckboxInvuln.IsChecked == true)
                     {
-                        this.dbg.ClearBreakpoints();
+                        this.mem.ClearBreakpoints();
                         Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
 
                         onBreakpoint = context =>
@@ -118,7 +117,7 @@ namespace BurntMemorySample
                             this.playeraddy = (UInt64)context.R15;
                             return context;
                         };
-                        this.dbg.SetBreakpoint("PlayerAddy", Pointers.PlayerAddy, onBreakpoint);
+                        this.mem.SetBreakpoint("PlayerAddy", Pointers.PlayerAddy, onBreakpoint);
                         // dbg.SetBreakpoint(new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.PlayerAddy)), onBreakpoint);
                         onBreakpoint = context =>
                         {
@@ -128,7 +127,7 @@ namespace BurntMemorySample
                             }
                             return context;
                         };
-                        this.dbg.SetBreakpoint("ShieldBreak", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldBreak)), onBreakpoint);
+                        this.mem.SetBreakpoint("ShieldBreak", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(this.mem, Pointers.ShieldBreak)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
@@ -138,7 +137,7 @@ namespace BurntMemorySample
                             }
                             return context;
                         };
-                        this.dbg.SetBreakpoint("ShieldChip", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.ShieldChip)), onBreakpoint);
+                        this.mem.SetBreakpoint("ShieldChip", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(this.mem, Pointers.ShieldChip)), onBreakpoint);
 
                         onBreakpoint = context =>
                         {
@@ -148,11 +147,11 @@ namespace BurntMemorySample
                             }
                             return context;
                         };
-                        this.dbg.SetBreakpoint("Health", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(Pointers.Health)), onBreakpoint);
+                        this.mem.SetBreakpoint("Health", new ReadWrite.Pointer((IntPtr)ReadWrite.ResolvePointer(this.mem, Pointers.Health)), onBreakpoint);
                     }
                     else
                     {
-                        this.dbg.ClearBreakpoints();
+                        this.mem.ClearBreakpoints();
                         /*                        Trace.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
                                                 if (BurntMemory.Debugger._BreakpointList.Count > 0)
                                                 {
@@ -180,7 +179,7 @@ namespace BurntMemorySample
             {
                 if (this.mem.Attached)
                 {
-                    ReadWrite.WriteBytes(Pointers.Medusa, this.CheckboxMedusa.IsChecked == true ? 1 : 0, true);
+                    ReadWrite.WriteBytes(this.mem, Pointers.Medusa, this.CheckboxMedusa.IsChecked == true ? 1 : 0, true);
                 }
                 else
                     throw new Exception("TriggerRevert test failed");
@@ -195,7 +194,7 @@ namespace BurntMemorySample
         private void CheckboxSpeedhack_Click(object sender, RoutedEventArgs e)
         {
             double value = (this.CheckboxSpeedhack.IsChecked == true) ? 10 : 1;
-            Trace.WriteLine("Speedhack set to " + value.ToString() + "?: " + SpeedhackManager.SetSpeed(value).ToString());
+            Trace.WriteLine("Speedhack set to " + value.ToString() + "?: " + this.mem.SetSpeed(value).ToString());
         }
 
  
@@ -204,14 +203,14 @@ namespace BurntMemorySample
         {
             try
             {
-                if (this.mem.Attached && ReadWrite.ReadInteger(Pointers.CPMessageCall) == 135945192)
+                if (this.mem.Attached && ReadWrite.ReadInteger(this.mem, Pointers.CPMessageCall) == 135945192)
                 {
-                    uint? currenttick = ReadWrite.ReadInteger(Pointers.Tickcount);
-                    ReadWrite.WriteBytes(Pointers.CPMessageCall, new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 }, true);
+                    uint? currenttick = ReadWrite.ReadInteger(this.mem, Pointers.Tickcount);
+                    ReadWrite.WriteBytes(this.mem, Pointers.CPMessageCall, new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 }, true);
                     PrintMessage("Custom Checkpoint... done");
-                    ReadWrite.WriteBytes(Pointers.Checkpoint, new byte[] { 1 }, false);
+                    ReadWrite.WriteBytes(this.mem, Pointers.Checkpoint, new byte[] { 1 }, false);
                     Thread.Sleep(500);
-                    ReadWrite.WriteBytes(Pointers.CPMessageCall, new byte[] { 0xE8, 0x5B, 0x1A, 0x08, 0x00 }, true);
+                    ReadWrite.WriteBytes(this.mem, Pointers.CPMessageCall, new byte[] { 0xE8, 0x5B, 0x1A, 0x08, 0x00 }, true);
                 }
                 else
                     throw new Exception("TriggerCheckpoint test failed");
@@ -228,7 +227,7 @@ namespace BurntMemorySample
             {
                 if (this.mem.Attached)
                 {
-                    ReadWrite.WriteBytes(Pointers.Coreload, new byte[] { 1 }, true);
+                    ReadWrite.WriteBytes(this.mem, Pointers.Coreload, new byte[] { 1 }, true);
                 }
                 else
                     throw new Exception("TriggerRevert test failed");
@@ -245,7 +244,7 @@ namespace BurntMemorySample
             {
                 if (this.mem.Attached)
                 {
-                    ReadWrite.WriteBytes(Pointers.Coresave, new byte[] { 1 }, true);
+                    ReadWrite.WriteBytes(this.mem, Pointers.Coresave, new byte[] { 1 }, true);
                 }
                 else
                     throw new Exception("TriggerRevert test failed");
@@ -262,7 +261,7 @@ namespace BurntMemorySample
             {
                 if (this.mem.Attached)
                 {
-                    ReadWrite.WriteBytes(Pointers.Revert, new byte[] { 1 }, true);
+                    ReadWrite.WriteBytes(this.mem, Pointers.Revert, new byte[] { 1 }, true);
                 }
                 else
                     throw new Exception("TriggerRevert test failed");

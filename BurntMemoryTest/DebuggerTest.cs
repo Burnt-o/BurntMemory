@@ -10,8 +10,7 @@ namespace BurntMemoryTest
     [TestClass]
     public class DebuggerTest
     {
-        public BurntMemory.AttachState mem = BurntMemory.AttachState.Instance;
-        public BurntMemory.AttachState dbg = BurntMemory.AttachState.Instance;
+        private BurntMemory.AttachState mem = new AttachState();
 
         [TestInitialize]
         public void SetUp()
@@ -26,7 +25,7 @@ namespace BurntMemoryTest
         [TestCleanup]
         public void CleanUp()
         {
-            this.dbg.GracefullyCloseDebugger();
+            this.mem.GracefullyCloseDebugger();
             this.mem.Detach();
         }
 
@@ -41,9 +40,9 @@ namespace BurntMemoryTest
             };
 
             ReadWrite.Pointer ptr = new ReadWrite.Pointer("main", new int[] { 0x50 });
-            this.dbg.SetBreakpoint("This", ptr, onBreakpoint);
+            this.mem.SetBreakpoint("This", ptr, onBreakpoint);
             Thread.Sleep(50);
-            byte[] instruction = ReadWrite.ReadBytes(ptr);
+            byte[] instruction = ReadWrite.ReadBytes(this.mem, ptr);
             Assert.AreEqual(instruction[0], 0xCC);
         }
 
@@ -59,7 +58,7 @@ namespace BurntMemoryTest
             };
 
             ReadWrite.Pointer ptr = new ReadWrite.Pointer("main", new int[] { 0xB020 });
-            this.dbg.SetBreakpoint("GetMessageW", ptr, onBreakpoint);
+            this.mem.SetBreakpoint("GetMessageW", ptr, onBreakpoint);
             Thread.Sleep(1000);
             Assert.AreEqual(RAXvalue, (UInt64)1);
         }
@@ -87,12 +86,12 @@ namespace BurntMemoryTest
             }
 
                 ReadWrite.Pointer ptr = new ReadWrite.Pointer("msvcrt.dll", new int[] { 0x74428 });
-            this.dbg.SetBreakpoint("ChangeChar", ptr, onBreakpoint);
+            this.mem.SetBreakpoint("ChangeChar", ptr, onBreakpoint);
 
             Thread.Sleep(5000);
 
             ReadWrite.Pointer display_ptr = new ReadWrite.Pointer("main", new int[] { 0x00031690, 0, 0 });
-            byte? first_displayed_value = ReadWrite.ReadBytes(display_ptr)[0];
+            byte? first_displayed_value = ReadWrite.ReadBytes(this.mem, display_ptr)[0];
             Assert.AreEqual((Int32)first_displayed_value, 0x65);
         }
     }
