@@ -1,70 +1,112 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Console = System.Diagnostics.Debug;
+using System.Windows;
+
 
 namespace BurntMemory
 {
-    public partial class AttachState
+    public class DebugManager
     {
-        public readonly Thread _DebugThread;
 
         // Singleton pattern
 
-        private static List<Breakpoint> _BreakpointList = new();
-
-        private static bool _ApplicationClosing = false;
-
-        public static bool _MonitorReloads = false;
-
-        private static bool _StartDebugging = false;
-
-
-        // TODO: do I need this?
-
-
-
-        public bool ApplicationClosing
+        public List<Breakpoint> BreakpointList
         {
-            get { return _ApplicationClosing; }
-            set { _ApplicationClosing = value; }
+            get; private set;
+        }
+
+
+
+        public bool _MonitorReloads = false;
+
+
+
+        private BurntMemory.AttachState _attachState;
+        public BurntMemory.ReadWrite _readWrite;
+        public DebugManager(BurntMemory.AttachState attachState, BurntMemory.ReadWrite readWrite)
+            {
+            _attachState = attachState;
+            _readWrite = readWrite;
+
+            BreakpointList = new List<Breakpoint>();
+
+
+            Events.ATTACH_EVENT += new EventHandler(Debugger_HandleAttach);
+            Events.DEATTACH_EVENT += new EventHandler(Debugger_HandleDetach);
+            Events.EXTERNAL_PROCESS_CLOSED_EVENT += new EventHandler(GracefullyCloseDebugger);
+
+            if (_attachState.Attached)
+            {
+                Debugger_HandleAttach(this, EventArgs.Empty);
+            }
+                
+
+        }
+
+
+        private DebugThread? DebugThread
+        { get; set; }
+
+        private void Debugger_HandleAttach(object? sender, EventArgs? e)
+        {
+            Trace.WriteLine("Debugger is handling attach");
+            //create a new DebugThread
+            if (DebugThread == null)
+            {
+                DebugThread = new(_attachState, _readWrite, this);
+                DebugThread.ResetBreakpoints = true;
+                DebugThread.NewBreakpoints = true;
+            }
+        }
+
+        private void Debugger_HandleDetach(object? sender, EventArgs? e)
+        {
+            //tell old DebugThread to shut down
+            if (DebugThread != null)
+            {
+                DebugThread.NeedToCloseThread = true; //tell thread to finish it's last loop
+            }
+            DebugThread = null; //Garbage collecter will come for it eventually
+
         }
 
         public void ClearBreakpoints()
         {
-            foreach (Breakpoint bp in _BreakpointList)
+            foreach (Breakpoint bp in BreakpointList)
             {
-                if (ReadWrite.ReadBytes(this, bp.Pointer, 1)?[0] == 0xCC)
+                if (_readWrite.ReadBytes(bp.Pointer, 1)?[0] == 0xCC)
                 {
-                    ReadWrite.WriteBytes(this, bp.Pointer, bp.originalCode, true);
+                    _readWrite.WriteBytes( bp.Pointer, bp.originalCode, true);
                 }
             }
-            _BreakpointList.Clear();
-            debuggerNeedsToBeOn = ShouldDebuggerBeOn();
+            BreakpointList.Clear();
         }
 
         public void RemoveBreakpoint(string BreakpointName)
         {
             Trace.WriteLine("removing breakpoint");
-            foreach (Breakpoint bp in _BreakpointList.ToList())
+            foreach (Breakpoint bp in BreakpointList.ToList())
             {
                 if (bp.BreakpointName == BreakpointName)
                 {
-                    if (Attached)
+                    if (_attachState.Attached)
                     {
-                        ReadWrite.WriteBytes(this, bp.Pointer, bp.originalCode, true);
+                        _readWrite.WriteBytes( bp.Pointer, bp.originalCode, true);
                     }
-                    _BreakpointList.Remove(bp);
+                    BreakpointList.Remove(bp);
                 }
             }
-            debuggerNeedsToBeOn = ShouldDebuggerBeOn();
+            
         }
 
         public bool SetBreakpoint(string BreakpointName, ReadWrite.Pointer ptr, Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint)
         {
-            if (Attached)
+            if (_attachState.Attached)
             {
+
                 RemoveBreakpoint(BreakpointName); //remove breakpoint if it was set before, we'll redo it here
-                byte[]? originalCode = ReadWrite.ReadBytes(this, ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
+                byte[]? originalCode = _readWrite.ReadBytes(ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
                 Trace.WriteLine("originalCode for bp: " + ptr.ToString() + ", oc: " + originalCode?[0].ToString());
 
                 if (originalCode == null)
@@ -74,16 +116,21 @@ namespace BurntMemory
                 }
 
                 // create a new breakpoint and put it in the breakpoint list;
-                _BreakpointList.Add(new Breakpoint(BreakpointName, ptr, onBreakpoint, originalCode));
-                debuggerNeedsToBeOn = ShouldDebuggerBeOn();
-                newBreakpoints = true;
+                BreakpointList.Add(new Breakpoint(BreakpointName, ptr, onBreakpoint, originalCode));
+  
+
+                if (DebugThread != null)
+                {
+                    DebugThread.NewBreakpoints = true;
+                }
+                
                 return true;
 
             }
             return false;
         }
 
-        private int BreakpointListContains(IntPtr addy, List<Breakpoint> BPList)
+        public int BreakpointListContains(IntPtr addy, List<Breakpoint> BPList)
         {
             if (BPList == null)
             {
@@ -97,7 +144,7 @@ namespace BurntMemory
 
             for (int i = 0; i < BPList.Count; i++)
             {
-                if (ReadWrite.ResolvePointer(this, BPList[i].Pointer) == addy)
+                if (_readWrite.ResolvePointer(BPList[i].Pointer) == addy)
                 {
                     return i;
                 }
@@ -108,51 +155,37 @@ namespace BurntMemory
 
 
         //debug loop control vars
-        public static bool needToStartDebugging = false;
-        public static bool processIsDebugged = false;
-        public static bool needToStopDebugging = false;
-        public static bool newBreakpoints = false;
-        public static bool resetBreakpoints = false;
+        public bool needToStartDebugging = false;
+        public bool processIsDebugged = false;
+        public bool needToStopDebugging = false;
+        public bool newBreakpoints = false;
+        public bool resetBreakpoints = false;
 
-        public static bool debuggerIsOn = false;
-        public static bool debuggerNeedsToBeOn = false;
+        public bool debuggerIsOn = false;
+        public bool debuggerNeedsToBeOn = false;
 
-        private static bool ShouldDebuggerBeOn()
+
+
+
+
+        public void GracefullyCloseDebugger(object? sender, EventArgs? e)
         {
-            return (_MonitorReloads || (_BreakpointList.Count > 0));
-        }
-
-
-
-
-    
-
-
-        private static IntPtr GetIntPtrFromByteArray(byte[] byteArray)
-        {
-            GCHandle pinnedArray = GCHandle.Alloc(byteArray, GCHandleType.Pinned);
-            IntPtr intPtr = pinnedArray.AddrOfPinnedObject();
-            pinnedArray.Free();
-            return intPtr;
-        }
-
-        public void GracefullyCloseDebugger()
-        {
-            if (Attached)
+            if (_attachState.Attached)
             {
                 this.ClearBreakpoints();
             }
-
-            this.ApplicationClosing = true; //a flag to tell the DebugThread to stop what it's doing after it's current loop
-            if (!this._DebugThread.Join(1000)) // wait for thread to finish executing, or 1s
+            if (this.DebugThread != null)
             {
-                Trace.WriteLine("DebugThread FAILED to shut down :(");
+                this.DebugThread.NeedToCloseThread = true; // A flag to tell the DebugThread to stop what it's doing after its current loop
+                if (!this.DebugThread.Thread.Join(1000)) // Wait for thread to finish executing, or 1s
+                {
+                    Trace.WriteLine("DebugThread FAILED to shut down :(");
+                }
+                else
+                {
+                    Trace.WriteLine("DebugThread successfully shut down"); // This should always happen
+                }
             }
-            else
-            {
-                Trace.WriteLine("DebugThread successfully shut down"); //this should always happen
-            }
-
         }
 
 

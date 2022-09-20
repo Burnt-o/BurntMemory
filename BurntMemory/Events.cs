@@ -9,6 +9,15 @@ namespace BurntMemory
     public class Events
     {
 
+        public static event EventHandler? EXTERNAL_PROCESS_CLOSED_EVENT;
+        public static void EXTERNAL_PROCESS_CLOSED_EVENT_INVOKE(object? sender, EventArgs e)
+        {
+            EventHandler? handler = EXTERNAL_PROCESS_CLOSED_EVENT;
+            if (handler != null)
+            {
+                handler(sender, e);
+            }
+        }
 
         public static event EventHandler? ATTACH_EVENT;
         public static void ATTACH_EVENT_INVOKE(object? sender, EventArgs e)

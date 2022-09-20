@@ -25,21 +25,13 @@ namespace BurntMemory
         public AttachState()
         {
             // Constructor
+
             _TryToAttachTimer.Elapsed += new ElapsedEventHandler(this.TryToAttachLoop);
             _TryToAttachTimer.Interval = 1000;
             _TryToAttachTimer.Enabled = false;
 
-            Events.DLL_LOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
-            Events.DLL_UNLOAD_EVENT += new System.EventHandler(this.HandleDLLReload);
-            this._DebugThread = new Thread
-                (new ThreadStart
-                    (DebugOuterLoop)
-                );
-            this._DebugThread.Start();
-
 
         }
-        
 
 
         //stuff to handle looping attach and control logic
@@ -47,23 +39,30 @@ namespace BurntMemory
         public bool Attached
         {
             get { return this._attached; }
-            private set { 
-                this._attached = value;
-                if (value)
+            private set 
+            { 
+                
+                if (!value)
+                {
+                    Events.DEATTACH_EVENT_INVOKE(this, EventArgs.Empty);
+                    
+                }
+                else if (value && !this._attached) //only pop Attach Event if we weren't already attached
                 {
                     Events.ATTACH_EVENT_INVOKE(this, EventArgs.Empty);
                 }
-                else 
-                { 
-                    Events.DEATTACH_EVENT_INVOKE(this, EventArgs.Empty); 
-                }
+                this._attached = value;
             }
-
         }
 
-        public bool ReloadModulesOnDLLEvent = false;
+        // Timer that will continually try to attach to a process until it succeeds
+        private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
+        public System.Timers.Timer TryToAttachTimer
+        {
+            get { return _TryToAttachTimer; }
+        }
 
-        // name of processes to attach to
+        // Name of processes to attach to. The first one it successfully attaches to will be the actual attached process (useful to be able to provide more than one in cases like a process having different names for different versions, ie Notepad.exe vs Notepad64.exe)
         private string[]? processesToAttach;
         public string[]? ProcessesToAttach
         {
@@ -71,25 +70,28 @@ namespace BurntMemory
             set { this.processesToAttach = value; }
         }
 
-        private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
-        public System.Timers.Timer TryToAttachTimer
-        {
-            get { return _TryToAttachTimer; }
-        }
 
-        public IntPtr? processHandle
+        // ReadWrite makes a lot of use of the processhandle for Read/WriteProcessMemory
+        private IntPtr? _processHandle;
+        public IntPtr? processHandle 
         {
             get { return _processHandle; }
             set { _processHandle = value; }
         }
 
+        // The debugger makes a lot of use of the processID for DebugActiveProcess and DebugActiveProcessStop
+        private uint? _processID = null;
+        public uint? ProcessID
+        {
+            get { return _processID; }
+            private set { _processID = value; }
+        }
+
 
         //attach process variables
         private string? nameOfAttachedProcess = null;
-        private Process? process = null;
-        private IntPtr? _processHandle; // ReadWrite will use this.. a lot
-        private uint? ProcessID = null;
-        private uint? OldProcessID = null; //used in debugger to make sure it can undebug the old process
+
+
 
         //public Dictionary<string, IntPtr?> modules = new(); // List of process modules and their base addresses. the main module is stored under key "main". All modules first evaluated on successful Attach(), non-main modules re-evaluated by debugger (DLL load/unload) or ReEvaluateModules() 
         private Dictionary<string, IntPtr?> _modules = new();
@@ -100,31 +102,22 @@ namespace BurntMemory
         }
 
 
-        private void HandleDLLReload(object? sender, System.EventArgs e)
-        {
-            if (ReloadModulesOnDLLEvent)
-            {
-                Trace.WriteLine("Handling a DLL reload");
-                //EvaluateModules();
-                //So turns out if you EvaluateModules on DLL_LOAD_DEBUG_EVENT, you'll just generate even more DLL_LOAD_DEBUG_EVENTs in an infinite loop. bad times. 
-                //a better solution would be to have the event pass the filehandle of the dll, then we have our own function here that gets the filename from the handle, then updates the key in our modulelist (importantly; not reiterating thru the whole modulecollection.
-            }
-        }
 
         public bool EvaluateModules() // TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
         {
 
             //need to refresh our Process object
+            Process? process;
             try
             {
-                this.process = Process.GetProcessesByName(nameOfAttachedProcess)[0];
+                process = Process.GetProcessesByName(nameOfAttachedProcess)[0];
             }
             catch 
             {
                 Detach();
                 return false;
             }
-            ProcessModuleCollection? allmodules = this.process?.Modules;
+            ProcessModuleCollection? allmodules = process?.Modules;
 
             if (allmodules == null)
             {
@@ -146,22 +139,19 @@ namespace BurntMemory
 
 
 
-        private bool Attach(string process)
+        private bool Attach(string processname)
         {
             try
             {
-                this.process = Process.GetProcessesByName(process)[0];
-                this.processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, this.process.Id);
-                this.nameOfAttachedProcess = process;
-                this.OldProcessID = this.ProcessID;
-                this.ProcessID = (uint)this.process.Id;
+                Process process = Process.GetProcessesByName(processname)[0];
+                this.processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, process.Id);
+                this.nameOfAttachedProcess = processname;
+                this._processID = (uint)process.Id;
                 Attached = true;
-                this.modules["main"] = this.process.MainModule?.BaseAddress;
+                this.modules["main"] = process.MainModule?.BaseAddress;
                 EvaluateModules();
-                this.process.EnableRaisingEvents = true;
-                this.process.Exited += new EventHandler(AttachedProcess_Exited);
-
-                BurntMemory.AttachState.needToStartDebugging = true;
+                process.EnableRaisingEvents = true;
+                process.Exited += new EventHandler(AttachedProcess_Exited);
                 return true;
             }
             catch
@@ -175,9 +165,8 @@ namespace BurntMemory
         public void Detach()
         {
             this.nameOfAttachedProcess = null;
-            this.process = null;
             this.processHandle = null;
-            this.ProcessID = null;
+            this._processID = null;
             Attached = false;
             this.modules["main"] = null;
         }
@@ -185,9 +174,9 @@ namespace BurntMemory
 
         private void AttachedProcess_Exited(object? sender, System.EventArgs e)
         {
-            AttachState.needToStopDebugging = true; //tell debugger to stop debugging 
+            Events.EXTERNAL_PROCESS_CLOSED_EVENT_INVOKE(sender, e);
+            //do we need to unsubscibe this on detach?
             Detach();
-            TryToAttachTimer.Enabled = true;
         }
 
         public void ForceAttach()

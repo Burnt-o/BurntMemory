@@ -8,86 +8,101 @@ using System.Runtime.InteropServices;
 
 namespace BurntMemory
 {
-    public partial class AttachState
+    public class DebugThread
     {
+
+
+
+        private AttachState _attachState;
+        private ReadWrite _readWrite;
+        private uint? _debuggedprocessID;
+        private DebugManager _debugManager;
+
+        public Thread Thread { get; private set; }
+
+        public bool NeedToCloseThread
+        {
+          private get; set;
+        }
+        public bool ResetBreakpoints
+        { private get; set; }
+
+        public bool NewBreakpoints
+        { private get; set; }
+
+
+        private bool _needToInit = true;
+
+        public DebugThread(AttachState attachState, ReadWrite readWrite, DebugManager debugManager)
+        { 
+        _attachState = attachState;
+            _readWrite = readWrite;
+            _debuggedprocessID = attachState.ProcessID;
+            _debugManager = debugManager;
+            Thread = new Thread(DebugOuterLoop);
+            Thread.Start();
+
+
+            ResetBreakpoints = false;
+            NewBreakpoints = false;
+            Trace.WriteLine("DebugThread object created");
+        }
+
 
         private uint _debuggedProcessID;
 
             public void DebugOuterLoop()
             {
-                while (!_ApplicationClosing)
+                while (!NeedToCloseThread)
                 {
 
 
-                    if (debuggerIsOn != debuggerNeedsToBeOn)
+                    if (_needToInit)
                     {
-                        if (debuggerIsOn) //need to turn debugger off
-                        {
-                            try
+                            if (_attachState.Attached && PInvokes.DebugActiveProcess((uint)_attachState.ProcessID))//setup debugger for new process
                             {
-                                PInvokes.DebugActiveProcessStop(_debuggedProcessID); //remove debugger from process
-                            }
-                            catch { }
-                        //actually this could fail if ProcessID is set to null.
-                            debuggerIsOn = false;
-                        }
-                        else //need to turn debugger on
-                        {
-                            try
-                            {
-                                PInvokes.DebugActiveProcessStop(_debuggedProcessID); //remove debugger from old process
-                            }
-                            catch { }
-
-                            bool success = ProcessID != null && PInvokes.DebugActiveProcess((uint)ProcessID); //setup debugger for new process
-                            if (success)
-                            {
-                            _debuggedProcessID = (uint)ProcessID;
+                            _debuggedProcessID = (uint)_attachState.ProcessID;
                                 PInvokes.DebugSetProcessKillOnExit(false); //we don't want debugged process to die when we close our debugger
-                                debuggerIsOn = true;
+                                _needToInit = false;
                             }
                             else
                             {
+                                Trace.WriteLine("retrying: this should never show up?");
                                 Thread.Sleep(100); //wait a bit before retrying
                             }
 
-                        }
+                      
 
-                    }
-
-                    if (!(debuggerIsOn))
-                    {
-                        Thread.Sleep(100); //let's not hog the cpu while waiting for debugging to start
                     }
                     else //Main loop where all the action happens!
                     {
-                        if (resetBreakpoints) //but first, if we've been told to resetBreakpoints then set CCwritten to false on all breakpoints that don't have CC written to it (interrupt set)
+                        if (ResetBreakpoints) //but first, if we've been told to resetBreakpoints then set CCwritten to false on all breakpoints that don't have CC written to it (interrupt set)
                         {
                             Trace.WriteLine("Processing resetBreakpoints");
-                            resetBreakpoints = false;
-                            for (int i = 0; i < _BreakpointList.Count; i++)
+                            ResetBreakpoints = false;
+                            for (int i = 0; i < _debugManager.BreakpointList.Count; i++)
                             {
-                                if (ReadWrite.ReadBytes(this, _BreakpointList[i].Pointer)?[0] != 0xCC)
+                                if (_readWrite.ReadBytes(_debugManager.BreakpointList[i].Pointer)?[0] != 0xCC)
                                 {
-                                    Breakpoint temp = new Breakpoint(_BreakpointList[i].BreakpointName, _BreakpointList[i].Pointer, _BreakpointList[i].onBreakpoint, _BreakpointList[i].originalCode, false);
-                                    _BreakpointList[i] = temp;
+                                    DebugManager.Breakpoint temp = new (_debugManager.BreakpointList[i].BreakpointName, _debugManager.BreakpointList[i].Pointer, _debugManager.BreakpointList[i].onBreakpoint, _debugManager.BreakpointList[i].originalCode, false);
+                                _debugManager.BreakpointList[i] = temp;
                                 }
                             }
                         }
 
-                        if (newBreakpoints) // and second, set interrupts on any new breakpoints that have come in since the last loop (or all of them if resetBreakpoints was run)
+                        if (NewBreakpoints) // and second, set interrupts on any new breakpoints that have come in since the last loop (or all of them if resetBreakpoints was run)
                         {
                             Trace.WriteLine("Processing newBreakpoints");
-                            newBreakpoints = false;
+                            NewBreakpoints = false;
                             //foreach (Breakpoint bp in _BreakpointList)
-                            for (int i = 0; i < _BreakpointList.Count; i++)
+                            for (int i = 0; i < _debugManager.BreakpointList.Count; i++)
                             {
-                                if (_BreakpointList[i].CCwritten == false)
+                                if (_debugManager.BreakpointList[i].CCwritten == false)
                                 {
-                                    if (ReadWrite.WriteBytes(this, _BreakpointList[i].Pointer, new byte[] { 0xCC }, true))
+                                    if (_readWrite.WriteBytes(_debugManager.BreakpointList[i].Pointer, new byte[] { 0xCC }, true))
                                     {
-                                        Breakpoint temp = new Breakpoint(_BreakpointList[i].BreakpointName, _BreakpointList[i].Pointer, _BreakpointList[i].onBreakpoint, _BreakpointList[i].originalCode, true);
-                                        _BreakpointList[i] = temp;
+                                        DebugManager.Breakpoint temp = new (_debugManager.BreakpointList[i].BreakpointName, _debugManager.BreakpointList[i].Pointer, _debugManager.BreakpointList[i].onBreakpoint, _debugManager.BreakpointList[i].originalCode, true);
+                                    _debugManager.BreakpointList[i] = temp;
                                     }
                                 }
                             }
@@ -97,25 +112,15 @@ namespace BurntMemory
                         DebugInnerLoop();
                     }
 
-                    if (needToStopDebugging)
-                    {
-                        needToStopDebugging = false;
-                        try
-                        {
-                            PInvokes.DebugActiveProcessStop((uint)ProcessID);
-                        }
-                        catch { Trace.WriteLine("tried to run DebugActiveProcessStop but failed - process was probably closed"); }
-
-                    }
 
 
                 }
                 //application that uses BurntMemory is closing! time to shutdown the thread
-                if (Attached)
+                if (_attachState.Attached)
                 {
                     try
                     {
-                        PInvokes.DebugActiveProcessStop((uint)ProcessID);
+                        PInvokes.DebugActiveProcessStop((uint)_debuggedProcessID);
                     }
                     catch (Exception ex)
                     {
@@ -130,7 +135,8 @@ namespace BurntMemory
             }
 
 
-            private static IntPtr? lastbreakpointhit = null;
+
+        private static IntPtr? lastbreakpointhit = null;
             private void DebugInnerLoop()
             {
                 IntPtr? hThread = null;
@@ -138,8 +144,19 @@ namespace BurntMemory
 
                 IntPtr lpBaseOfDllLoad = IntPtr.Zero;
 
-                // we don't want _BreakpointList to get modified while the loop is running, so make a copy
-                List<Breakpoint> _BreakpointListTemp = _BreakpointList.ConvertAll(s => new Breakpoint { Pointer = s.Pointer, onBreakpoint = s.onBreakpoint, originalCode = s.originalCode }).ToList();
+            // we don't want _BreakpointList to get modified while the loop is running, so make a copy
+            List<DebugManager.Breakpoint> _BreakpointListTemp;
+            if (_debugManager.BreakpointList.Count > 0)
+            {
+                //timing/thread-safety issue here I need to fix
+                _BreakpointListTemp = _debugManager.BreakpointList.ConvertAll(s => new DebugManager.Breakpoint { BreakpointName = s.BreakpointName, Pointer = s.Pointer, onBreakpoint = s.onBreakpoint, originalCode = s.originalCode }).ToList();
+                
+            }
+            else
+            {
+                _BreakpointListTemp = new List<DebugManager.Breakpoint>();
+            }
+                
 
                 IntPtr debugEventPtr = Marshal.AllocHGlobal(188);
                 bb = PInvokes.WaitForDebugEvent(debugEventPtr, 100);
@@ -165,16 +182,16 @@ namespace BurntMemory
                                     // TODO: this will totally break if breakpoint list modified during singlestep
                                     // YEP it breaks
                                     //Trace.WriteLine("rip of singlestep exception: " + ExceptionDebugInfo.ExceptionRecord.ExceptionAddress.ToString());
-                                    ReadWrite.WriteBytes(this, new ReadWrite.Pointer(lastbreakpointhit), new byte[] { 0xCC }, true);
+                                    _readWrite.WriteBytes(new ReadWrite.Pointer(lastbreakpointhit), new byte[] { 0xCC }, true);
                                 }
 
-                                PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
+                                PInvokes.FlushInstructionCache((IntPtr)_attachState.processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)30);
                                 dwContinueDebugEvent = PInvokes.DBG_CONTINUE;
                                 break;
 
                             case PInvokes.EXCEPTION_BREAKPOINT:
                                 // Trace.WriteLine("checking breakpointlist");
-                                int BreakpointHit = BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, _BreakpointListTemp);
+                                int BreakpointHit = _debugManager.BreakpointListContains(ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, _BreakpointListTemp);
                                 if (BreakpointHit >= 0)
                                 {
                                     dwContinueDebugEvent = PInvokes.DBG_CONTINUE;
@@ -194,12 +211,12 @@ namespace BurntMemory
                                         // do custom function things
                                         context64 = _BreakpointListTemp[BreakpointHit].onBreakpoint(context64);
 
-                                        ReadWrite.WriteBytes(this, _BreakpointListTemp[BreakpointHit].Pointer, _BreakpointListTemp[BreakpointHit].originalCode, true); // TODO: how to handle this failing?
+                                        _readWrite.WriteBytes(_BreakpointListTemp[BreakpointHit].Pointer, _BreakpointListTemp[BreakpointHit].originalCode, true); // TODO: how to handle this failing?
                                         context64.Rip--; // go back an instruction to execute original code
                                         context64.EFlags |= 0x100; // Set trap flag, to raise single-step exception
                                         PInvokes.SetThreadContext((IntPtr)hThread, ref context64); // TODO: how to handle this failing?
                                     }
-                                    PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
+                                    PInvokes.FlushInstructionCache((IntPtr)_attachState.processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
                                     // PInvokes.FlushInstructionCache((IntPtr)processHandle, ExceptionDebugInfo.ExceptionRecord.ExceptionAddress, (UIntPtr)60);
 
                                     // actually I don't think we need our own threads here.
@@ -261,10 +278,17 @@ namespace BurntMemory
                 }
 
 
-           
 
 
+
+            }
+        private static IntPtr GetIntPtrFromByteArray(byte[] byteArray)
+        {
+            GCHandle pinnedArray = GCHandle.Alloc(byteArray, GCHandleType.Pinned);
+            IntPtr intPtr = pinnedArray.AddrOfPinnedObject();
+            pinnedArray.Free();
+            return intPtr;
         }
-        
+
     }
 }
