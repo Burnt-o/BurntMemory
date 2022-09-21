@@ -1,30 +1,25 @@
-﻿using System.Text;
-using System.Runtime.InteropServices;
-using System.Threading;
-
+﻿using System.Runtime.InteropServices;
+using System.Text;
 
 namespace BurntMemory
 {
     public class DLLInjector
-    
-        
-        {
 
+    {
         private AttachState _attachState;
         private ReadWrite _readWrite;
+
         public DLLInjector(AttachState attachState, ReadWrite readWrite)
-        { 
-        _attachState = attachState;
+        {
+            _attachState = attachState;
             _readWrite = readWrite;
         }
-
-
 
         public bool InjectDLL(string dllName)
         {
             if (_attachState.Attached == false)
                 return false;
-            
+
             // searching for the address of LoadLibraryA and storing it in a pointer
             IntPtr? loadLibraryAddr = PInvokes.GetProcAddress(PInvokes.GetModuleHandle("kernel32.dll"), "LoadLibraryA");
 
@@ -50,7 +45,6 @@ namespace BurntMemory
             {
                 return false;
             }
-            
 
             // writing the name of the dll at the pointer
             BurntMemory.ReadWrite.Pointer ptr = new ReadWrite.Pointer(allocMemAddress);
@@ -61,8 +55,5 @@ namespace BurntMemory
 
             return threadID != null;
         }
-
-
-
     }
 }

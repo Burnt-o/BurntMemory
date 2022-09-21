@@ -6,6 +6,7 @@ namespace BurntMemory
     public class ReadWrite
     {
         private AttachState _attachstate;
+
         public ReadWrite(AttachState attachState)
         {
             _attachstate = attachState;
@@ -169,7 +170,6 @@ namespace BurntMemory
             return (PInvokes.ReadProcessMemory((IntPtr)_attachstate.processHandle, (IntPtr)addy, data, length, out _)) ? data : null;
         }
 
-
         public UInt32? ReadInteger(Pointer? ptr)
         {
             byte[]? data = ReadData(ptr, 4);
@@ -180,7 +180,6 @@ namespace BurntMemory
         {
             byte[]? data = ReadData(ptr, 8);
             return data != null ? BitConverter.ToUInt64(data, 0) : null;
-
         }
 
         public byte[]? ReadBytes(Pointer? ptr, int length = 1)
@@ -188,8 +187,7 @@ namespace BurntMemory
             return ReadData(ptr, length);
         }
 
-
-        public float? ReadFloat (Pointer? ptr)
+        public float? ReadFloat(Pointer? ptr)
         {
             byte[]? data = ReadData(ptr, 4);
             return data != null ? BitConverter.ToSingle(data, 0) : null;
@@ -232,7 +230,6 @@ namespace BurntMemory
             }
 
             return success;
-
         }
 
         public bool WriteInteger(Pointer? ptr, UInt32 value, bool isProtected)

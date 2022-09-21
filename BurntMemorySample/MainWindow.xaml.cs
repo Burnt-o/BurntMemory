@@ -13,8 +13,6 @@ namespace BurntMemorySample
     /// </summary>
     public partial class MainWindow : Window
     {
-
-
         private AttachState mem;
         private ReadWrite rw;
         private DebugManager? dbg;
@@ -30,17 +28,11 @@ namespace BurntMemorySample
             this.mem = new AttachState();
             this.rw = new ReadWrite(this.mem);
 
-
             Events.ATTACH_EVENT += new EventHandler(Handle_Attach);
             Events.DEATTACH_EVENT += new EventHandler(Handle_Detach);
             this.mem.ProcessesToAttach = new string[] { "MCC-Win64-Shipping" };
             this.mem.TryToAttachTimer.Enabled = true;
             this.mem.ForceAttach();
-
-
-
-
-
         }
 
         private void Handle_Attach(object? sender, EventArgs? e)
@@ -49,7 +41,6 @@ namespace BurntMemorySample
             {
                 SetUI(true);
             }));
-            
         }
 
         private void Handle_Detach(object? sender, EventArgs? e)
@@ -71,7 +62,6 @@ namespace BurntMemorySample
             this.Effect7Medusa.IsEnabled = truth;
         }
 
-
         private void MainWindow_closing(object sender, CancelEventArgs e)
         {
             Trace.WriteLine("I'm out of here");
@@ -80,7 +70,7 @@ namespace BurntMemorySample
                 if (this.rw.ReadBytes(Pointers.Medusa, 1)?[0] == 1)
                 {
                     this.rw.WriteBytes(Pointers.Medusa, 0, false);
-                }  
+                }
             }
 
             if (this.dbg != null)
@@ -92,7 +82,6 @@ namespace BurntMemorySample
             {
                 this.spd.RemoveSpeedHack(sender, e);
             }
-
         }
 
         private void PrintMessage(string message)
@@ -125,66 +114,62 @@ namespace BurntMemorySample
             {
                 this.dbg = new DebugManager(this.mem, this.rw);
             }
-                
-            
+
             if (this.CheckboxInvuln.IsChecked == true)
+            {
+                this.dbg.ClearBreakpoints();
+                Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
+
+                onBreakpoint = context =>
+                {
+                    this.playeraddy = (UInt64)context.R15;
+                    return context;
+                };
+                this.dbg.SetBreakpoint("PlayerAddy", Pointers.PlayerAddy, onBreakpoint);
+                onBreakpoint = context =>
+                {
+                    if (context.Rdi == (this.playeraddy + 0xA0))
                     {
-                        
-                        this.dbg.ClearBreakpoints();
-                        Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
-
-                        onBreakpoint = context =>
-                        {
-                            this.playeraddy = (UInt64)context.R15;
-                            return context;
-                        };
-                        this.dbg.SetBreakpoint("PlayerAddy", Pointers.PlayerAddy, onBreakpoint);
-                        onBreakpoint = context =>
-                        {
-                            if (context.Rdi == (this.playeraddy + 0xA0))
-                            {
-                                context.Rcx = 0;
-                            }
-                            return context;
-                        };
-                        this.dbg.SetBreakpoint("ShieldBreak", new ReadWrite.Pointer((IntPtr)this.rw.ResolvePointer(Pointers.ShieldBreak)), onBreakpoint);
-
-                        onBreakpoint = context =>
-                        {
-                            if (context.Rdi == (this.playeraddy + 0xA0))
-                            {
-                                context.R9 = 0x0800;
-                            }
-                            return context;
-                        };
-                        this.dbg.SetBreakpoint("ShieldChip", new ReadWrite.Pointer((IntPtr)this.rw.ResolvePointer(Pointers.ShieldChip)), onBreakpoint);
-
-                        onBreakpoint = context =>
-                        {
-                            if (context.Rbx == this.playeraddy)
-                            {
-                                context.Rbp = 0;
-                            }
-                            return context;
-                        };
-                        this.dbg.SetBreakpoint("Health", new ReadWrite.Pointer((IntPtr)this.rw.ResolvePointer(Pointers.Health)), onBreakpoint);
+                        context.Rcx = 0;
                     }
-                    else
+                    return context;
+                };
+                this.dbg.SetBreakpoint("ShieldBreak", new ReadWrite.Pointer((IntPtr)this.rw.ResolvePointer(Pointers.ShieldBreak)), onBreakpoint);
+
+                onBreakpoint = context =>
+                {
+                    if (context.Rdi == (this.playeraddy + 0xA0))
                     {
-                        this.dbg.ClearBreakpoints();
-                        /*                        Trace.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
-                                                if (BurntMemory.Debugger._BreakpointList.Count > 0)
-                                                {
-                                                    foreach (BurntMemory.Debugger.Breakpoint bp in BurntMemory.Debugger._BreakpointList)
-                                                    {
-                                                        Trace.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
-                                                        Trace.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
-                                                        Trace.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
-                                                    }
-                                                }*/
+                        context.R9 = 0x0800;
                     }
-            
+                    return context;
+                };
+                this.dbg.SetBreakpoint("ShieldChip", new ReadWrite.Pointer((IntPtr)this.rw.ResolvePointer(Pointers.ShieldChip)), onBreakpoint);
 
+                onBreakpoint = context =>
+                {
+                    if (context.Rbx == this.playeraddy)
+                    {
+                        context.Rbp = 0;
+                    }
+                    return context;
+                };
+                this.dbg.SetBreakpoint("Health", new ReadWrite.Pointer((IntPtr)this.rw.ResolvePointer(Pointers.Health)), onBreakpoint);
+            }
+            else
+            {
+                this.dbg.ClearBreakpoints();
+                /*                        Trace.WriteLine("_BreakpointList.Count: "+ BurntMemory.Debugger._BreakpointList.Count);
+                                        if (BurntMemory.Debugger._BreakpointList.Count > 0)
+                                        {
+                                            foreach (BurntMemory.Debugger.Breakpoint bp in BurntMemory.Debugger._BreakpointList)
+                                            {
+                                                Trace.WriteLine("bp.Pointer: " + bp.Pointer?.ToString());
+                                                Trace.WriteLine("bp.onBreakpoint: " + bp.onBreakpoint.ToString());
+                                                Trace.WriteLine("bp.originalCode: " + bp.originalCode.ToString());
+                                            }
+                                        }*/
+            }
         }
 
         private void CheckboxMedusa_Click(object sender, RoutedEventArgs e)
@@ -216,8 +201,6 @@ namespace BurntMemorySample
             double value = (this.CheckboxSpeedhack.IsChecked == true) ? 10 : 1;
             Trace.WriteLine("Speedhack set to " + value.ToString() + "?: " + this.spd.SetSpeed(value).ToString());
         }
-
- 
 
         private void TriggerCheckpoint(object sender, RoutedEventArgs e)
         {

@@ -1,36 +1,26 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
-using Console = System.Diagnostics.Debug;
-using System.Windows;
-using System.Collections.Concurrent;
-
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace BurntMemory
 {
     public class DebugManager
     {
-
         public ConcurrentDictionary<IntPtr, Breakpoint> BreakpointList
         {
             get; private set;
         }
 
-
-
-
         public bool _MonitorReloads = false;
-
-
 
         private BurntMemory.AttachState _attachState;
         public BurntMemory.ReadWrite _readWrite;
+
         public DebugManager(BurntMemory.AttachState attachState, BurntMemory.ReadWrite readWrite)
-            {
+        {
             _attachState = attachState;
             _readWrite = readWrite;
 
-            BreakpointList = new ();
-
+            BreakpointList = new();
 
             Events.ATTACH_EVENT += new EventHandler(Debugger_HandleAttach);
             Events.DEATTACH_EVENT += new EventHandler(Debugger_HandleDetach);
@@ -40,10 +30,7 @@ namespace BurntMemory
             {
                 Debugger_HandleAttach(this, EventArgs.Empty);
             }
-                
-
         }
-
 
         private DebugThread? DebugThread
         { get; set; }
@@ -61,7 +48,6 @@ namespace BurntMemory
                 DebugThread.NeedToCloseThread = true; //tell thread to finish it's last loop
             }
             DebugThread = null; //Garbage collecter will come for it eventually
-
         }
 
         public void ClearBreakpoints()
@@ -86,11 +72,9 @@ namespace BurntMemory
                 {
                     ReadWrite.Pointer ptr = new(item.Key);
                     if (_attachState.Attached && _readWrite.ReadBytes(ptr, 1)?[0] == 0xCC)
-                    { 
+                    {
                         _readWrite.WriteBytes(ptr, item.Value.originalCode, true);
                     }
-                    
-                    
                 }
             }
             var BreakpointsToRemove = BreakpointList.Where(x => x.Value.BreakpointName == BreakpointName).ToArray();
@@ -98,21 +82,18 @@ namespace BurntMemory
             {
                 BreakpointList.TryRemove(item.Key, out _);
             }
-
         }
 
         public bool SetBreakpoint(string BreakpointName, ReadWrite.Pointer ptr, Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint)
         {
             if (_attachState.Attached)
             {
-
-                
                 IntPtr? addy = _readWrite.ResolvePointer(ptr);
                 if (addy == null)
                 {
                     return false;
                 }
-                ReadWrite.Pointer resolvedPointer = new (addy);
+                ReadWrite.Pointer resolvedPointer = new(addy);
 
                 RemoveBreakpoint(BreakpointName); //remove breakpoint if it was set before, we'll redo it here
 
@@ -128,46 +109,37 @@ namespace BurntMemory
                 // create a new breakpoint and put it in the breakpoint list;
                 BreakpointList.TryAdd((IntPtr)addy, new Breakpoint(BreakpointName, ptr, onBreakpoint, originalCode));
 
-
                 InstructDebugThread();
 
-                
                 return true;
-
             }
             return false;
         }
 
         private void InstructDebugThread()
         {
-
             if (BreakpointList.Any())
             {
                 if (DebugThread == null)
                 {
                     DebugThread = new(_attachState, _readWrite, this);
                     DebugThread.ResetBreakpoints = true;
-                    
                 }
                 DebugThread.NewBreakpoints = true;
-
             }
-            else 
+            else
             {
                 if (DebugThread != null)
-                { 
-                DebugThread.NeedToCloseThread = true;
+                {
+                    DebugThread.NeedToCloseThread = true;
                     DebugThread = null;
                 }
-            
             }
         }
 
-
-
-
         //debug loop control vars
         public bool needToStartDebugging = false;
+
         public bool processIsDebugged = false;
         public bool needToStopDebugging = false;
         public bool newBreakpoints = false;
@@ -175,10 +147,6 @@ namespace BurntMemory
 
         public bool debuggerIsOn = false;
         public bool debuggerNeedsToBeOn = false;
-
-
-
-
 
         public void GracefullyCloseDebugger(object? sender, EventArgs? e)
         {
@@ -200,8 +168,6 @@ namespace BurntMemory
             }
         }
 
-
-
         public struct Breakpoint
         {
             public string BreakpointName = "null";
@@ -209,6 +175,7 @@ namespace BurntMemory
             public byte[] originalCode;
             public ReadWrite.Pointer? Pointer;
             public bool CCwritten;
+
             public Breakpoint(string BreakpointName, ReadWrite.Pointer ptr, Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint, byte[] originalCode, bool CCwritten = false)
             {
                 this.BreakpointName = BreakpointName;
@@ -218,6 +185,7 @@ namespace BurntMemory
                 this.CCwritten = CCwritten;
             }
         }
+
         /*
         I want a singleton of the Debugger instance. This is to always exist whether we're actually debugging or not; we'll instantiate it when AttachState is instantiated.
         A seperate thread will be created on this instantiantion too - this DebugThread is where the actual catching will happen, when "KeepDebugging" flag is true.

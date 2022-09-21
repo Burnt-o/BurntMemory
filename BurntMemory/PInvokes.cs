@@ -5,10 +5,6 @@ namespace BurntMemory
     // 99% of this PInvoke class is ripped from https://ladydebug.com/blog/2017/12/05/writing-windows-debugger-in-c/
     public class PInvokes
     {
-
-
-
-
         public const UInt32 CREATE_NEW_CONSOLE = 0x00000010;
 
         public const Int32 CREATE_PROCESS_DEBUG_EVENT = 3;
@@ -129,6 +125,7 @@ namespace BurntMemory
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle,
      uint dwThreadId);
+
         [DllImport("kernel32.dll")]
         public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, out int lpNumberOfBytesRead);
 
@@ -156,16 +153,15 @@ namespace BurntMemory
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
 
-/*        Don't need this I think
- *        public struct CREATE_REMOTE_THREAD_FLAGS
-        {
-            const int PROCESS_CREATE_THREAD = 0x0002;
-            const int PROCESS_QUERY_INFORMATION = 0x0400;
-            const int PROCESS_VM_OPERATION = 0x0008;
-            const int PROCESS_VM_WRITE = 0x0020;
-            const int PROCESS_VM_READ = 0x0010;
-        }*/
-
+        /*        Don't need this I think
+         *        public struct CREATE_REMOTE_THREAD_FLAGS
+                {
+                    const int PROCESS_CREATE_THREAD = 0x0002;
+                    const int PROCESS_QUERY_INFORMATION = 0x0400;
+                    const int PROCESS_VM_OPERATION = 0x0008;
+                    const int PROCESS_VM_WRITE = 0x0020;
+                    const int PROCESS_VM_READ = 0x0010;
+                }*/
 
         // used for memory allocation
         public struct ALLOC_FLAGS
@@ -174,7 +170,6 @@ namespace BurntMemory
             public const uint MEM_RESERVE = 0x00002000;
             public const uint PAGE_READWRITE = 4;
         }
-
 
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
         public struct CONTEXT64
@@ -250,6 +245,7 @@ namespace BurntMemory
             public IntPtr lpImageName;
             public ushort fUnicode;
         }
+
         [StructLayout(LayoutKind.Sequential)]
         public struct CREATE_THREAD_DEBUG_INFO
         {
@@ -389,6 +385,7 @@ namespace BurntMemory
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
             public byte[] Reserved4;
         }
+
         // more excetions may be added for processing, check minwinbase.h and winnt.h for definitions and values
         /*
                 #define EXCEPTION_FLT_DENORMAL_OPERAND      STATUS_FLOAT_DENORMAL_OPERAND

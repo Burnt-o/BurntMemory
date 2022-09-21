@@ -10,13 +10,13 @@
     <Grid Margin="0,0,0,1">
         <Label Content="Hotkey" HorizontalAlignment="Left" Margin="29,14,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.961,0.465" />
         <Label Content="Effect" HorizontalAlignment="Left" Margin="144,14,0,0" VerticalAlignment="Top" />
-        <Label x:Name="Effect1Checkpoint" Content="Checkpoint" HorizontalAlignment="Left" Margin="144,60,0,0" VerticalAlignment="Top" Visibility="Visible" IsEnabled="False"/>
-        <Label x:Name="Effect2Revert" Content="Revert" HorizontalAlignment="Left" Margin="144,100,0,0" VerticalAlignment="Top" IsEnabled="False"/>
-        <Label x:Name="Effect3Coresave" Content="Core Save (Steam only)" HorizontalAlignment="Left" Margin="144,140,0,0" VerticalAlignment="Top" IsEnabled="False"/>
-        <Label x:Name="Effect4Coreload" Content="Core Load (Steam only)" HorizontalAlignment="Left" Margin="144,180,0,0" VerticalAlignment="Top" IsEnabled="False"/>
-        <Label x:Name="Effect5Invuln" Content="Invuln" HorizontalAlignment="Left" Margin="144,220,0,0" VerticalAlignment="Top" IsEnabled="False"/>
-        <Label x:Name="Effect6Speedhack" Content="Speedhack" HorizontalAlignment="Left" Margin="144,260,0,0" VerticalAlignment="Top" IsEnabled="False"/>
-        <Label x:Name="Effect7Medusa" Content="Medusa" HorizontalAlignment="Left" Margin="144,300,0,0" VerticalAlignment="Top" IsEnabled="False"/>
+        <Label x:Name="Effect1Checkpoint" Content="Checkpoint" HorizontalAlignment="Left" Margin="144,60,0,0" VerticalAlignment="Top" Visibility="Visible" IsEnabled="False" />
+        <Label x:Name="Effect2Revert" Content="Revert" HorizontalAlignment="Left" Margin="144,100,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <Label x:Name="Effect3Coresave" Content="Core Save (Steam only)" HorizontalAlignment="Left" Margin="144,140,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <Label x:Name="Effect4Coreload" Content="Core Load (Steam only)" HorizontalAlignment="Left" Margin="144,180,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <Label x:Name="Effect5Invuln" Content="Invuln" HorizontalAlignment="Left" Margin="144,220,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <Label x:Name="Effect6Speedhack" Content="Speedhack" HorizontalAlignment="Left" Margin="144,260,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <Label x:Name="Effect7Medusa" Content="Medusa" HorizontalAlignment="Left" Margin="144,300,0,0" VerticalAlignment="Top" IsEnabled="False" />
 
         <Label x:Name="H1" Content="H1" HorizontalAlignment="Left" Margin="30,60,0,0" VerticalAlignment="Top" />
         <Label x:Name="H2" Content="H2" HorizontalAlignment="Left" Margin="30,100,0,0" VerticalAlignment="Top" />
