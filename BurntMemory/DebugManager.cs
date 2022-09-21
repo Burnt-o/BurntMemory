@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Console = System.Diagnostics.Debug;
 using System.Windows;
+using System.Collections.Concurrent;
 
 
 namespace BurntMemory
@@ -9,12 +10,11 @@ namespace BurntMemory
     public class DebugManager
     {
 
-        // Singleton pattern
-
-        public List<Breakpoint> BreakpointList
+        public ConcurrentDictionary<IntPtr, Breakpoint> BreakpointList
         {
             get; private set;
         }
+
 
 
 
@@ -29,7 +29,7 @@ namespace BurntMemory
             _attachState = attachState;
             _readWrite = readWrite;
 
-            BreakpointList = new List<Breakpoint>();
+            BreakpointList = new ();
 
 
             Events.ATTACH_EVENT += new EventHandler(Debugger_HandleAttach);
@@ -50,14 +50,7 @@ namespace BurntMemory
 
         private void Debugger_HandleAttach(object? sender, EventArgs? e)
         {
-            Trace.WriteLine("Debugger is handling attach");
-            //create a new DebugThread
-            if (DebugThread == null)
-            {
-                DebugThread = new(_attachState, _readWrite, this);
-                DebugThread.ResetBreakpoints = true;
-                DebugThread.NewBreakpoints = true;
-            }
+            InstructDebugThread();
         }
 
         private void Debugger_HandleDetach(object? sender, EventArgs? e)
@@ -73,11 +66,12 @@ namespace BurntMemory
 
         public void ClearBreakpoints()
         {
-            foreach (Breakpoint bp in BreakpointList)
+            foreach (var item in BreakpointList)
             {
-                if (_readWrite.ReadBytes(bp.Pointer, 1)?[0] == 0xCC)
+                ReadWrite.Pointer ptr = new(item.Key);
+                if (_attachState.Attached && _readWrite.ReadBytes(ptr, 1)?[0] == 0xCC)
                 {
-                    _readWrite.WriteBytes( bp.Pointer, bp.originalCode, true);
+                    _readWrite.WriteBytes(ptr, item.Value.originalCode, true);
                 }
             }
             BreakpointList.Clear();
@@ -86,18 +80,25 @@ namespace BurntMemory
         public void RemoveBreakpoint(string BreakpointName)
         {
             Trace.WriteLine("removing breakpoint");
-            foreach (Breakpoint bp in BreakpointList.ToList())
+            foreach (var item in BreakpointList)
             {
-                if (bp.BreakpointName == BreakpointName)
+                if (item.Value.BreakpointName == BreakpointName)
                 {
-                    if (_attachState.Attached)
-                    {
-                        _readWrite.WriteBytes( bp.Pointer, bp.originalCode, true);
+                    ReadWrite.Pointer ptr = new(item.Key);
+                    if (_attachState.Attached && _readWrite.ReadBytes(ptr, 1)?[0] == 0xCC)
+                    { 
+                        _readWrite.WriteBytes(ptr, item.Value.originalCode, true);
                     }
-                    BreakpointList.Remove(bp);
+                    
+                    
                 }
             }
-            
+            var BreakpointsToRemove = BreakpointList.Where(x => x.Value.BreakpointName == BreakpointName).ToArray();
+            foreach (var item in BreakpointsToRemove)
+            {
+                BreakpointList.TryRemove(item.Key, out _);
+            }
+
         }
 
         public bool SetBreakpoint(string BreakpointName, ReadWrite.Pointer ptr, Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint)
@@ -105,8 +106,17 @@ namespace BurntMemory
             if (_attachState.Attached)
             {
 
+                
+                IntPtr? addy = _readWrite.ResolvePointer(ptr);
+                if (addy == null)
+                {
+                    return false;
+                }
+                ReadWrite.Pointer resolvedPointer = new (addy);
+
                 RemoveBreakpoint(BreakpointName); //remove breakpoint if it was set before, we'll redo it here
-                byte[]? originalCode = _readWrite.ReadBytes(ptr); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
+
+                byte[]? originalCode = _readWrite.ReadBytes(resolvedPointer); //get the original assembly byte at the instruction of the breakpoint - we'l need this for removing the breakpoint later
                 Trace.WriteLine("originalCode for bp: " + ptr.ToString() + ", oc: " + originalCode?[0].ToString());
 
                 if (originalCode == null)
@@ -116,13 +126,11 @@ namespace BurntMemory
                 }
 
                 // create a new breakpoint and put it in the breakpoint list;
-                BreakpointList.Add(new Breakpoint(BreakpointName, ptr, onBreakpoint, originalCode));
-  
+                BreakpointList.TryAdd((IntPtr)addy, new Breakpoint(BreakpointName, ptr, onBreakpoint, originalCode));
 
-                if (DebugThread != null)
-                {
-                    DebugThread.NewBreakpoints = true;
-                }
+
+                InstructDebugThread();
+
                 
                 return true;
 
@@ -130,28 +138,32 @@ namespace BurntMemory
             return false;
         }
 
-        public int BreakpointListContains(IntPtr addy, List<Breakpoint> BPList)
+        private void InstructDebugThread()
         {
-            if (BPList == null)
-            {
-                return -1;
-            }
 
-            if (BPList.Count == 0)
+            if (BreakpointList.Any())
             {
-                return -2;
-            }
-
-            for (int i = 0; i < BPList.Count; i++)
-            {
-                if (_readWrite.ResolvePointer(BPList[i].Pointer) == addy)
+                if (DebugThread == null)
                 {
-                    return i;
+                    DebugThread = new(_attachState, _readWrite, this);
+                    DebugThread.ResetBreakpoints = true;
+                    
                 }
-            }
+                DebugThread.NewBreakpoints = true;
 
-            return -3;
+            }
+            else 
+            {
+                if (DebugThread != null)
+                { 
+                DebugThread.NeedToCloseThread = true;
+                    DebugThread = null;
+                }
+            
+            }
         }
+
+
 
 
         //debug loop control vars
@@ -192,7 +204,7 @@ namespace BurntMemory
 
         public struct Breakpoint
         {
-            public string BreakpointName;
+            public string BreakpointName = "null";
             public Func<PInvokes.CONTEXT64, PInvokes.CONTEXT64> onBreakpoint;
             public byte[] originalCode;
             public ReadWrite.Pointer? Pointer;
