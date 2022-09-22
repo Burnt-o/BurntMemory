@@ -21,9 +21,16 @@ namespace BurntMemorySample
 
         private UInt64 playeraddy = 0;
 
+        private ExternalMemoryObject MessageObject;
+
+
         public MainWindow()
         {
             this.InitializeComponent();
+
+            SetupExternalMemoryObjects();
+            //this is nightmare syntax if I want to have more than one level of fields.
+            //there's gotta be a better fucking way
 
             this.mem = new AttachState();
             this.rw = new ReadWrite(this.mem);
@@ -84,8 +91,28 @@ namespace BurntMemorySample
             }
         }
 
+        private void SetupExternalMemoryObjects()
+        {
+            this.MessageObject = new(Pointers.MessageTC,
+                new Field[] 
+                { 
+                    (Field)0, 
+                    (Field)Offsets.MessageText, 
+                    (Field)Offsets.MessageFlag,
+                    (Field)Offsets.MessageInteger
+                });
+        }
+
+        private enum MessageObject_Fields
+        {
+            TickCount = 0,
+            Text,
+            Flag,
+            Integer
+        }
         private void PrintMessage(string message)
         {
+        
             // trim to 62 chars
             message = message.Length > 62 ? message[..61] : message;
 
@@ -96,10 +123,12 @@ namespace BurntMemorySample
             Trace.WriteLine("tickcount: " + tickcount.ToString());
             if (tickcount != null)
             {
-                Trace.WriteLine("1: " + this.rw.WriteInteger(Pointers.MessageTC, (uint)tickcount, true).ToString());
-                Trace.WriteLine("2: " + this.rw.WriteString(Pointers.MessageTC + Offsets.MessageText, message, true, true).ToString());
-                Trace.WriteLine("3: " + this.rw.WriteBytes(Pointers.MessageTC + Offsets.MessageFlag, new byte[] { 0, 0, 1, 0 }, true).ToString());
-                Trace.WriteLine("4: " + this.rw.WriteInteger(Pointers.MessageTC + Offsets.MessageInt, 0xFFFFFFFF, true).ToString());
+
+        ReadWrite.Pointer ptr = new(rw.ResolvePointer(MessageObject.Pointer)); //cache the result
+                rw.WriteInteger(ptr + MessageObject.Fields[(int)MessageObject_Fields.TickCount].Offset, (uint)tickcount, true);
+                rw.WriteString(ptr + MessageObject.Fields[(int)MessageObject_Fields.Text].Offset, message, true, true);
+                rw.WriteBytes(ptr + MessageObject.Fields[(int)MessageObject_Fields.Flag].Offset, new byte[] { 0, 0, 1, 0 }, true);
+                rw.WriteInteger(ptr + MessageObject.Fields[(int)MessageObject_Fields.Integer].Offset, 0xFFFFFFFF, true);
             }
         }
 
@@ -278,7 +307,7 @@ namespace BurntMemorySample
         public static class Offsets
         {
             public static readonly int MessageFlag = 0x80;
-            public static readonly int MessageInt = 0x84;
+            public static readonly int MessageInteger = 0x84;
             public static readonly int MessageText = 0x4;
         }
 

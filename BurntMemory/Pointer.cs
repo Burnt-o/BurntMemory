@@ -82,7 +82,7 @@ namespace BurntMemory
                 {
                     newPointer = new(originalPointer.Modulename, null, originalPointer.Address, originalPointer.BaseAddress); // Clone the originalPointer (but this time we know the Offsets field is null)
 
-                    IntPtr newAddress = new IntPtr((int)originalPointer.Address + (int)addOffset); // Add offset to IntPtr
+                    IntPtr newAddress = IntPtr.Add((IntPtr)originalPointer.Address, (int)addOffset); // Add offset to IntPtr
                     newPointer.Address = newAddress; // Update cloned Pointer's Address field with the newAddress
                     return newPointer; // And return the modified Pointer
                 }

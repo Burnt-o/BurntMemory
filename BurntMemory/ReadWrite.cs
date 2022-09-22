@@ -92,7 +92,7 @@ namespace BurntMemory
             return ptr;
         }
 
-        private byte[]? ReadData(Pointer? ptr, int length = 1)
+        public byte[]? ReadData(Pointer? ptr, int length = 1)
         {
             if (_attachstate.Attached == false)
                 return null;
@@ -104,6 +104,8 @@ namespace BurntMemory
             byte[]? data = new byte[length];
             return (PInvokes.ReadProcessMemory((IntPtr)_attachstate.processHandle, (IntPtr)addy, data, length, out _)) ? data : null;
         }
+
+
 
         public UInt32? ReadInteger(Pointer? ptr)
         {
@@ -145,7 +147,7 @@ namespace BurntMemory
 
         public bool WriteData(Pointer? ptr, byte[]? data, bool isProtected)
         {
-            if (_attachstate.Attached == false)
+            if (_attachstate.Attached == false || data == null)
                 return false;
 
             IntPtr? addy = ResolvePointer(ptr);
