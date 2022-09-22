@@ -43,21 +43,20 @@ namespace BurntMemory
         private void Debugger_HandleDetach(object? sender, EventArgs? e)
         {
             //tell old DebugThread to shut down
-            if (DebugThread != null)
-            {
-                DebugThread.NeedToCloseThread = true; //tell thread to finish it's last loop
-            }
-            DebugThread = null; //Garbage collecter will come for it eventually
+            ClearBreakpoints();
         }
 
         public void ClearBreakpoints()
         {
-            foreach (var item in BreakpointList)
+            if (_attachState.Attached)
             {
-                ReadWrite.Pointer ptr = new(item.Key);
-                if (_attachState.Attached && _readWrite.ReadBytes(ptr, 1)?[0] == 0xCC)
+                foreach (var item in BreakpointList)
                 {
-                    _readWrite.WriteBytes(ptr, item.Value.originalCode, true);
+                    ReadWrite.Pointer ptr = new(item.Key);
+                    if (_readWrite.ReadBytes(ptr, 1)?[0] == 0xCC)
+                    {
+                        _readWrite.WriteBytes(ptr, item.Value.originalCode, true);
+                    }
                 }
             }
             BreakpointList.Clear();

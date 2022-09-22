@@ -3,7 +3,7 @@
 // using System.Diagnostics;
 namespace BurntMemory
 {
-    public class ReadWrite
+    public partial class ReadWrite
     {
         private AttachState _attachstate;
 
@@ -12,72 +12,7 @@ namespace BurntMemory
             _attachstate = attachState;
         }
 
-        public class Pointer
-        {
-            public string? Modulename;
-            public int[]? Offsets;
-            public IntPtr? Address;
-            public IntPtr? BaseAddress;
-
-            //Pointer class has various constructor overloads. ResolvePointer method also has matching overloads to deal with these, the end result being an IntPtr?.
-            public Pointer(string? a, int[]? b)
-            {
-                this.Modulename = a;
-                this.Offsets = b;
-                this.Address = null;
-                this.BaseAddress = null;
-            }
-
-            public Pointer(IntPtr? a, int[]? b)
-            {
-                this.Modulename = null;
-                this.Offsets = b;
-                this.Address = null;
-                this.BaseAddress = a;
-            }
-
-            public Pointer(IntPtr? a)
-            {
-                this.Modulename = null;
-                this.Offsets = null;
-                this.Address = a;
-                this.BaseAddress = null;
-            }
-
-            public Pointer(int[]? a)
-            {
-                this.Modulename = null;
-                this.Offsets = a;
-                this.Address = null;
-                this.BaseAddress = null;
-            }
-
-            public Pointer(string? a, int[]? b, IntPtr? c, IntPtr? d) // used for deepcopy in +operator
-            {
-                this.Modulename = a;
-                this.Offsets = b;
-                this.Address = c;
-                this.BaseAddress = d;
-            }
-
-            //a static method for adding an offset to a Pointer
-            public static Pointer? operator +(Pointer? a, int? b)
-            {
-                if (a == null || a.Offsets == null)
-                {
-                    return a;
-                }
-
-                // we don't want to modify the original Pointer, so make a copy
-                Pointer c = new(a.Modulename, (int[])a.Offsets.Clone(), a.Address, a.BaseAddress);
-
-                int? lastElement = c.Offsets[^1];
-
-                lastElement += b; // add offset to last element
-                c.Offsets[^1] = lastElement.GetValueOrDefault(); // update copied Pointer's last element
-                return c;
-            }
-        }
+       
 
         public IntPtr? ResolvePointer(Pointer? ptr)
         {
