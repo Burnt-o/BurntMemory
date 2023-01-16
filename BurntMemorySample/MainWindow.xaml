@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BurntMemorySample"
         mc:Ignorable="d"
-        Title="Halo CEA Singleplayer Trainer" Height="374" Width="280"
+        Title="Halo CEA Singleplayer Trainer" Height="414" Width="280"
         Closing="MainWindow_closing">
     <Grid Margin="0,0,0,1">
         <Label Content="Hotkey" HorizontalAlignment="Left" Margin="29,14,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.961,0.465" />
@@ -17,6 +17,7 @@
         <Label x:Name="Effect5Invuln" Content="Invuln" HorizontalAlignment="Left" Margin="144,220,0,0" VerticalAlignment="Top" IsEnabled="False" />
         <Label x:Name="Effect6Speedhack" Content="Speedhack" HorizontalAlignment="Left" Margin="144,260,0,0" VerticalAlignment="Top" IsEnabled="False" />
         <Label x:Name="Effect7Medusa" Content="Medusa" HorizontalAlignment="Left" Margin="144,300,0,0" VerticalAlignment="Top" IsEnabled="False" />
+        <Label x:Name="Effect8Bool" Content="BOOL Practice Mode" HorizontalAlignment="Left" Margin="144,340,0,0" VerticalAlignment="Top" IsEnabled="False" />
 
         <Label x:Name="H1" Content="H1" HorizontalAlignment="Left" Margin="30,60,0,0" VerticalAlignment="Top" />
         <Label x:Name="H2" Content="H2" HorizontalAlignment="Left" Margin="30,100,0,0" VerticalAlignment="Top" />
@@ -25,9 +26,11 @@
         <Label x:Name="H5" Content="H5" HorizontalAlignment="Left" Margin="30,220,0,0" VerticalAlignment="Top" />
         <Label x:Name="H6" Content="H6" HorizontalAlignment="Left" Margin="30,260,0,0" VerticalAlignment="Top" />
         <Label x:Name="H7" Content="H7" HorizontalAlignment="Left" Margin="30,300,0,0" VerticalAlignment="Top" />
+        <Label x:Name="H8" Content="H8" HorizontalAlignment="Left" Margin="30,340,0,0" VerticalAlignment="Top" />
         <CheckBox x:Name="CheckboxInvuln"  Content="" HorizontalAlignment="Left" Margin="128,227,0,0" VerticalAlignment="Top" Click="CheckboxInvuln_Click" />
         <CheckBox x:Name="CheckboxSpeedhack" Content="" HorizontalAlignment="Left" Margin="128,267,0,0" VerticalAlignment="Top" Click="CheckboxSpeedhack_Click" />
         <CheckBox x:Name="CheckboxMedusa" Content="" HorizontalAlignment="Left" Margin="128,307,0,0" VerticalAlignment="Top" Click="CheckboxMedusa_Click" />
+        <CheckBox x:Name="CheckboxBoolmode" Content="" HorizontalAlignment="Left" Margin="128,347,0,0" VerticalAlignment="Top" Click="CheckboxBoolmode_Click" />
         <Button Content="Do" HorizontalAlignment="Left" Margin="98,63,0,0" VerticalAlignment="Top" Click="TriggerCheckpoint" />
         <Button Content="Do" HorizontalAlignment="Left" Margin="98,103,0,0" VerticalAlignment="Top" Click="TriggerRevert" />
         <Button Content="Do" HorizontalAlignment="Left" Margin="98,143,0,0" VerticalAlignment="Top" Click="TriggerCoresave" />

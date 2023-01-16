@@ -2,6 +2,9 @@
 {
     public class Events
     {
+
+
+
         public static event EventHandler? EXTERNAL_PROCESS_CLOSED_EVENT;
 
         public static void EXTERNAL_PROCESS_CLOSED_EVENT_INVOKE(object? sender, EventArgs e)
@@ -13,11 +16,21 @@
             }
         }
 
-        public static event EventHandler? ATTACH_EVENT;
 
-        public static void ATTACH_EVENT_INVOKE(object? sender, EventArgs e)
+
+        public class AttachedEventArgs : EventArgs 
         {
-            EventHandler? handler = ATTACH_EVENT;
+            public string? NameOfProcess;
+            public string? ProcessVersion;
+        }
+
+
+
+        public static event EventHandler<AttachedEventArgs>? ATTACH_EVENT;
+
+        public static void ATTACH_EVENT_INVOKE(object? sender, AttachedEventArgs e)
+        {
+            EventHandler<AttachedEventArgs>? handler = ATTACH_EVENT;
             if (handler != null)
             {
                 handler(sender, e);

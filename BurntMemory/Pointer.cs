@@ -90,6 +90,38 @@ namespace BurntMemory
                 //Execution shouldn't normally get here unless the Pointer had both null Offsets and Address, but just in case
                 return originalPointer;
             }
+
+            public static Pointer? operator -(Pointer? originalPointer, int? addOffset)
+            {
+                if (originalPointer == null || addOffset == null)
+                {
+                    return originalPointer;
+                }
+
+
+
+                Pointer newPointer; // A new Pointer object that will be a clone of originalPointer, then modified and finally returned.
+                if (originalPointer.Offsets != null) // We need to add the addOffset to the last element of int[] Offsets
+                {
+                    newPointer = new(originalPointer.Modulename, (int[])originalPointer.Offsets.Clone(), originalPointer.Address, originalPointer.BaseAddress); // Clone the originalPointer
+                    int? lastElement = newPointer.Offsets[^1]; // Get the last element of Offsets field
+
+                    lastElement += addOffset; // Add addOffset to last element
+                    newPointer.Offsets[^1] = lastElement.GetValueOrDefault(); // Update copied Pointer's last element
+                    return newPointer; // And return the modified Pointer
+                }
+                else if (originalPointer.Address != null) // We need to add the addOffset to the Address IntPtr
+                {
+                    newPointer = new(originalPointer.Modulename, null, originalPointer.Address, originalPointer.BaseAddress); // Clone the originalPointer (but this time we know the Offsets field is null)
+
+                    IntPtr newAddress = IntPtr.Subtract((IntPtr)originalPointer.Address, (int)addOffset); // Add offset to IntPtr
+                    newPointer.Address = newAddress; // Update cloned Pointer's Address field with the newAddress
+                    return newPointer; // And return the modified Pointer
+                }
+
+                //Execution shouldn't normally get here unless the Pointer had both null Offsets and Address, but just in case
+                return originalPointer;
+            }
         }
     }
 }

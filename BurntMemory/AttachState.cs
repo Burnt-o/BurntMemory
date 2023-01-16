@@ -36,15 +36,25 @@ namespace BurntMemory
             {
                 if (!value)
                 {
-                    Events.DEATTACH_EVENT_INVOKE(this, EventArgs.Empty);
+                    if (this._attached) // Only invoke Detach Event if we were previously attached
+                    {
+                        Events.DEATTACH_EVENT_INVOKE(this, EventArgs.Empty);
+                    }
+                    
                 }
                 else if (value && !this._attached) //only pop Attach Event if we weren't already attached
                 {
-                    Events.ATTACH_EVENT_INVOKE(this, EventArgs.Empty);
+                    Events.AttachedEventArgs attachedEventArgs = new();
+                    attachedEventArgs.NameOfProcess = nameOfAttachedProcess;
+                    attachedEventArgs.ProcessVersion = _processVersion;
+                    Events.ATTACH_EVENT_INVOKE(this, attachedEventArgs);
                 }
                 this._attached = value;
             }
         }
+
+        private string? _processVersion;
+        public string? ProcessVersion { get { return this._processVersion; } set { this._processVersion = value; } }
 
         // Timer that will continually try to attach to a process until it succeeds
         private static readonly System.Timers.Timer _TryToAttachTimer = new System.Timers.Timer();
@@ -82,15 +92,55 @@ namespace BurntMemory
         }
 
         //attach process variables
-        private string? nameOfAttachedProcess = null;
+        public string? nameOfAttachedProcess = null;
 
         //public Dictionary<string, IntPtr?> modules = new(); // List of process modules and their base addresses. the main module is stored under key "main". All modules first evaluated on successful Attach(), non-main modules re-evaluated by debugger (DLL load/unload) or ReEvaluateModules()
-        private Dictionary<string, IntPtr?> _modules = new();
 
-        public Dictionary<string, IntPtr?> modules
+        private Dictionary<string, ReadWrite.Pointer?> _modules = new();
+        public Dictionary<string, ReadWrite.Pointer?> modules 
         {
-            get { return _modules; }
-            private set { _modules = value; }
+            get
+            {
+
+                    return _modules;
+            }
+        }
+
+
+        public bool SetModulePointer(string? moduleName, ReadWrite.Pointer? pointerToModule)
+        {
+
+            lock (modules)
+            {
+                if (pointerToModule == null || moduleName == null)
+                {
+                    Trace.WriteLine("OH GODDDDDDDDDD 1");
+                    return false;
+                }
+
+                if (moduleName == "main")
+                {
+                    Trace.WriteLine("SetModulePoitner processing main");
+                    if (modules.ContainsKey("main"))
+                    {
+                        modules.Remove("main");
+                    }
+
+                    modules.Add("main", new ReadWrite.Pointer(MainModuleBaseAddress));
+                }
+                else
+                {
+                    Trace.WriteLine("SetModulePoitner processing non-main. moduleName:" + moduleName);
+                    Trace.WriteLine("pointerToModule is null? " + pointerToModule == null ? "yes" : "no");
+                    if (modules.ContainsKey(moduleName))
+                    {
+                        modules.Remove(moduleName);
+                    }
+                    modules.Add(moduleName, pointerToModule);
+                }
+
+                return true;
+            }
         }
 
         public bool EvaluateModules() // TODO: like ReadWrites reading functions, we should probably change this from a bool return to an error code
@@ -101,8 +151,9 @@ namespace BurntMemory
             {
                 process = Process.GetProcessesByName(nameOfAttachedProcess)[0];
             }
-            catch
+            catch (Exception ex)
             {
+                Trace.WriteLine("1Detaching, reason: " + ex.Message);
                 Detach();
                 return false;
             }
@@ -113,37 +164,94 @@ namespace BurntMemory
                 return false;
             }
 
-            foreach (ProcessModule module in allmodules)
+            lock (modules)
             {
-                if (module.ModuleName != null)
+               /* foreach (ProcessModule module in allmodules)
                 {
-                    this.modules[module.ModuleName] = module.BaseAddress;
-                    Trace.WriteLine(module.ModuleName);
-                }
+                    if (module.ModuleName != null)
+                    {
+                        this.modules[module.ModuleName] = null;
+                        //Trace.WriteLine(module.ModuleName);
+                    }
+                }*/
             }
 
             return false;
         }
 
+        public IntPtr? MainModuleBaseAddress { get; set; }
+
+        private readonly object AttachLock = new object();
         private bool Attach(string processname)
         {
-            try
+            lock (AttachLock)
             {
-                Process process = Process.GetProcessesByName(processname)[0];
-                this.processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, process.Id);
-                this.nameOfAttachedProcess = processname;
-                this._processID = (uint)process.Id;
-                Attached = true;
-                this.modules["main"] = process.MainModule?.BaseAddress;
-                EvaluateModules();
-                process.EnableRaisingEvents = true;
-                process.Exited += new EventHandler(AttachedProcess_Exited);
-                return true;
-            }
-            catch
-            {
-                Detach();
-                return false;
+                try
+                {
+                    Process? ourProcess = null;
+                    Process[] ProcessList = Process.GetProcesses();
+                    foreach (Process proc in ProcessList)
+                    {
+                        //Needs to ignore case woo
+                        if (proc.ProcessName.Equals(processname, StringComparison.OrdinalIgnoreCase))
+                        {
+                            ourProcess = proc;
+                            break;
+                        }
+                    }
+
+                    if (ourProcess == null)
+                    {
+                        Trace.WriteLine("Failed to find process of name: " + processname);
+                        Detach();
+                        return false;
+                    }
+                    this.processHandle = PInvokes.OpenProcess(PInvokes.PROCESS_ALL_ACCESS, false, ourProcess.Id);
+                    this.nameOfAttachedProcess = processname;
+                    this._processID = (uint)ourProcess.Id;
+                    this.ProcessVersion = ourProcess.MainModule?.FileVersionInfo.ProductVersion?.ToString() ?? null;
+
+     
+                        Trace.WriteLine("ourProcess.MainModule is null? " + ourProcess.MainModule == null ? "yes" : "no");
+                        Trace.WriteLine("ourProcess.MainModule?.BaseAddress " + ourProcess.MainModule != null ? ourProcess.MainModule.BaseAddress : "can't");
+                        Trace.WriteLine("How bout procHandle? is null? " + this.processHandle == null ? "yes" : "no");
+                        Trace.WriteLine("Address of procHandle: " + this.processHandle != null ? this.processHandle.Value.ToString("X") : "Can't");
+
+                    lock (modules)
+                    {
+                        ReadWrite.Pointer mainmoduleptr = new ReadWrite.Pointer(ourProcess.MainModule?.BaseAddress);
+                        if (modules.ContainsKey("main"))
+                        {
+                            modules.Remove("main");
+                        }
+                        modules.Add("main", mainmoduleptr);
+
+                        MainModuleBaseAddress = ourProcess.MainModule?.BaseAddress;
+
+                        if (this.modules["main"] == null)
+                        {
+                            Trace.WriteLine("Trying wack fix");
+                            //this.modules["main"] = new ReadWrite.Pointer(this.processHandle);
+                        }
+
+                        if (this.modules["main"] == null)
+                        {
+                            throw new Exception("FUCKKKKK");
+                        }
+                    }
+
+                    EvaluateModules();
+                    ourProcess.EnableRaisingEvents = true;
+                    ourProcess.Exited += new EventHandler(AttachedProcess_Exited);
+                    Attached = true;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine("2Detaching, reason: " + ex.Message + ex.StackTrace);
+                    Detach();
+                    return false;
+                }
             }
         }
 
@@ -153,13 +261,18 @@ namespace BurntMemory
             this.processHandle = null;
             this._processID = null;
             Attached = false;
-            this.modules["main"] = null;
+            lock (modules)
+            {
+                this.modules.Clear();
+            }
+            
         }
 
         private void AttachedProcess_Exited(object? sender, System.EventArgs e)
         {
             Events.EXTERNAL_PROCESS_CLOSED_EVENT_INVOKE(sender, e);
             //do we need to unsubscibe this on detach?
+            Trace.WriteLine("3Detaching, reason: Attached Process Exited");
             Detach();
         }
 

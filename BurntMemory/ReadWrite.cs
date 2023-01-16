@@ -18,11 +18,13 @@ namespace BurntMemory
         {
             if (ptr == null)
             {
+
                 return null;
             }
 
             if (ptr.Address != null)
             {
+
                 return (IntPtr)ptr.Address;
             }
 
@@ -30,29 +32,105 @@ namespace BurntMemory
             {
                 if (ptr.BaseAddress != null)
                 {
+
                     return ResolvePointer((IntPtr)ptr.BaseAddress, ptr.Offsets);
                 }
 
                 if (ptr.Modulename != null)
                 {
+                    //System.Diagnostics.Trace.WriteLine("HERE IS MY PROBLEM DEAR GOD WHY EEEEEEEEEE");
+                    //the problem must be occuring here
+                    //System.Diagnostics.Trace.WriteLine("moduleName: " + (string)ptr.Modulename);
+                    //System.Diagnostics.Trace.WriteLine("offsets length: " + ptr.Offsets.Length);
+
+                    IntPtr? res = ResolvePointer((string)ptr.Modulename, (int[])ptr.Offsets);
+                    if (res == null)
+                    {
+                        //System.Diagnostics.Trace.WriteLine("RESULT WAS NULL?! WHY");
+                    }
+                    else
+                    {
+                       // System.Diagnostics.Trace.WriteLine("RESULT WAS NONNULL: " + res.Value.ToString("X"));
+                    }
+
                     return ResolvePointer((string)ptr.Modulename, (int[])ptr.Offsets);
                 }
 
+
+
                 return ResolvePointer(IntPtr.Zero, (int[])ptr.Offsets);
             }
+
+
             return null;
         }
 
         // TODO: double check this makes sense with multi level pointers
         private IntPtr? ResolvePointer(string modulename, int[]? offsets)
         {
-            if (_attachstate.modules[modulename] == null)
-            {
-                return null;
-            }
+            //System.Diagnostics.Trace.WriteLine("Beginning module resolution");
 
-            IntPtr? baseAddress = _attachstate.modules[modulename];
-            return ResolvePointer(baseAddress, offsets);
+            lock (_attachstate.modules)
+            {
+                IntPtr? baseAddress = null;
+                if (!_attachstate.modules.ContainsKey(modulename) || _attachstate.modules[modulename] == null || _attachstate.modules[modulename].Address == null)
+                {
+                    //System.Diagnostics.Trace.WriteLine("horrible fix area");
+                    if (modulename == "main")
+                    {
+                        //System.Diagnostics.Trace.WriteLine("main was null - trying horrible fix" + "BLEGHEGHGH");
+                        //System.Diagnostics.Trace.WriteLine("_attachstate.modules.ContainsKey(modulename)" + _attachstate.modules.ContainsKey(modulename));
+                        //System.Diagnostics.Trace.WriteLine("_attachstate.modules[modulename] == null" + _attachstate.modules[modulename] == null);
+                        //System.Diagnostics.Trace.WriteLine("_attachstate.modules[modulename].BaseAddress == null" + _attachstate.modules[modulename].BaseAddress == null);
+                        //try to fix it
+                        uint? id = this._attachstate.ProcessID;
+                        if (id == null) return null;
+                        System.Diagnostics.Process? proc = System.Diagnostics.Process.GetProcessById((int)id);
+                        if (proc == null) return null;
+                        baseAddress = proc.MainModule?.BaseAddress;
+                       // System.Diagnostics.Trace.WriteLine("proc mainmodule we're assigning to main: " + proc.MainModule?.BaseAddress.ToString("X"));
+                        if (baseAddress != null)
+                        {
+                            System.Diagnostics.Trace.WriteLine("Horrible fix succeeded!");
+                            _attachstate.modules.Remove("main");
+                            _attachstate.modules.Add("main", new ReadWrite.Pointer(baseAddress));
+
+
+                            //System.Diagnostics.Trace.WriteLine("Let's test it. does the key exist? " + (_attachstate.modules.ContainsKey("main") ? "yes" : "no"));
+                            //System.Diagnostics.Trace.WriteLine("The address of main is: " + _attachstate.modules["main"].Address);
+                        }
+                        else
+                        {
+                            //System.Diagnostics.Trace.WriteLine("Why the fuck is this null?!");
+                            return null; }
+                    }
+
+                    //return null;
+                }
+
+
+                if (modulename == "main")
+                {
+                    baseAddress = _attachstate.MainModuleBaseAddress;
+                }
+                else
+                {
+                    //System.Diagnostics.Trace.WriteLine("The ultimate problem must be here. The key we're looking for is: " + modulename);
+                    //System.Diagnostics.Trace.WriteLine("Does modules contain this key? " + _attachstate.modules.ContainsKey(modulename));
+                    if (_attachstate.modules.ContainsKey(modulename))
+                    { 
+                        ReadWrite.Pointer? ptr = _attachstate.modules[modulename];
+                        //System.Diagnostics.Trace.WriteLine("Is the rw.ptr null?" + ptr == null);
+                        if (ptr != null)
+                        {
+                            //System.Diagnostics.Trace.WriteLine("What's the module of this ptr? " + ptr.Modulename);
+                        }
+                    }
+                    baseAddress = ResolvePointer(_attachstate.modules[modulename]);
+                }
+
+                return ResolvePointer(baseAddress, offsets);
+            }
         }
 
         // TODO: test which of these approaches handles null values more gracefully (either the incoming offsets being literally null, or more likely scenario: readInteger/Qword is null.
@@ -62,7 +140,10 @@ namespace BurntMemory
         {
             if (baseAddress == null)
             {
-                baseAddress = _attachstate.modules["main"];
+                lock (_attachstate.modules)
+                {
+                    baseAddress = _attachstate.modules["main"]?.BaseAddress;
+                }
                 if (baseAddress == null)
                 {
                     return null;
@@ -92,12 +173,11 @@ namespace BurntMemory
             return ptr;
         }
 
-        public byte[]? ReadData(Pointer? ptr, int length = 1)
+        private byte[]? ReadData(IntPtr? addy, int length = 1)
         {
             if (_attachstate.Attached == false)
                 return null;
 
-            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null)
                 return null;
 
@@ -106,51 +186,83 @@ namespace BurntMemory
         }
 
 
-
         public UInt32? ReadInteger(Pointer? ptr)
+        { 
+        return ReadInteger(ResolvePointer(ptr));
+        }
+        public UInt32? ReadInteger(IntPtr? addy)
         {
-            byte[]? data = ReadData(ptr, 4);
+            byte[]? data = ReadData(addy, 4);
             return data != null ? BitConverter.ToUInt32(data, 0) : null;
         }
 
         public UInt64? ReadQword(Pointer? ptr)
         {
-            byte[]? data = ReadData(ptr, 8);
+            return ReadQword(ResolvePointer(ptr));
+        }
+        public UInt64? ReadQword(IntPtr? addy)
+        {
+            byte[]? data = ReadData(addy, 8);
             return data != null ? BitConverter.ToUInt64(data, 0) : null;
         }
 
+
         public byte[]? ReadBytes(Pointer? ptr, int length = 1)
         {
-            return ReadData(ptr, length);
+            return ReadBytes(ResolvePointer(ptr), length);
+        }
+        public byte[]? ReadBytes(IntPtr? addy, int length = 1)
+        {
+            return ReadData(addy, length);
+        }
+
+        public byte? ReadByte(Pointer? ptr)
+        {
+            return ReadByte(ResolvePointer(ptr));
+        }
+        public byte? ReadByte(IntPtr? addy)
+        {
+            byte[]? data = ReadData(addy, 1);
+            return data?[0];
         }
 
         public float? ReadFloat(Pointer? ptr)
         {
-            byte[]? data = ReadData(ptr, 4);
+            return ReadFloat(ResolvePointer(ptr));
+        }
+        public float? ReadFloat(IntPtr? addy)
+        {
+            byte[]? data = ReadData(addy, 4);
             return data != null ? BitConverter.ToSingle(data, 0) : null;
         }
 
-        public double? ReadDouble(AttachState state, Pointer? ptr)
+        public double? ReadDouble(Pointer? ptr)
         {
-            byte[]? data = ReadData(ptr, 8);
+            return ReadDouble(ResolvePointer(ptr));
+        }
+        public double? ReadDouble(IntPtr? addy)
+        {
+            byte[]? data = ReadData(addy, 8);
             return data != null ? BitConverter.ToDouble(data, 0) : null;
         }
 
         public string? ReadString(Pointer? ptr, int length, bool unicode)
+        { 
+        return ReadString(ResolvePointer(ptr), length, unicode);    
+        }
+        public string? ReadString(IntPtr? addy, int length, bool unicode)
         {
             Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
-            byte[]? data = ReadData(ptr, length);
+            byte[]? data = ReadData(addy, length);
             return data != null ? encoding.GetString(data) : null;
         }
 
-        // TODO: instead of just having a success boolean, we should instead return error codes (zero if no error)
 
-        public bool WriteData(Pointer? ptr, byte[]? data, bool isProtected)
+        private bool WriteData(IntPtr? addy, byte[]? data, bool isProtected = false)
         {
             if (_attachstate.Attached == false || data == null)
                 return false;
 
-            IntPtr? addy = ResolvePointer(ptr);
             if (addy == null)
                 return false;
 
@@ -169,45 +281,68 @@ namespace BurntMemory
             return success;
         }
 
-        public bool WriteInteger(Pointer? ptr, UInt32 value, bool isProtected)
+        public bool WriteInteger(Pointer? ptr, UInt32 value, bool isProtected = false)
         {
-            return WriteData(ptr, BitConverter.GetBytes(value), isProtected);
+            return WriteInteger(ResolvePointer(ptr), value, isProtected);
+        }
+        public bool WriteInteger(IntPtr? addy, UInt32 value, bool isProtected = false)
+        {
+            return WriteData(addy, BitConverter.GetBytes(value), isProtected);
         }
 
-        public bool WriteQword(Pointer? ptr, UInt64 value, bool isProtected)
+        public bool WriteQword(Pointer? ptr, UInt64 value, bool isProtected = false)
         {
-            return WriteData(ptr, BitConverter.GetBytes(value), isProtected);
+            return WriteQword(ResolvePointer(ptr), value, isProtected);
+        }
+        public bool WriteQword(IntPtr? addy, UInt64 value, bool isProtected = false)
+        {
+            return WriteData(addy, BitConverter.GetBytes(value), isProtected);
         }
 
-        public bool WriteBytes(Pointer? ptr, int value, bool isProtected)
+        public bool WriteByte(Pointer? ptr, byte value, bool isProtected = false)
         {
-            return WriteData(ptr, new byte[] { (byte)value }, isProtected);
+            return WriteByte(ResolvePointer(ptr), value, isProtected);
+        }
+        public bool WriteByte(IntPtr? addy, byte value, bool isProtected = false)
+        {
+            return WriteData(addy, new byte[] { value }, isProtected);
         }
 
-        public bool WriteBytes(Pointer? ptr, byte value, bool isProtected)
+        public bool WriteBytes(Pointer? ptr, byte[] value, bool isProtected = false)
         {
-            return WriteData(ptr, new byte[] { value }, isProtected);
+            return WriteBytes(ResolvePointer(ptr), value, isProtected);
+        }
+        public bool WriteBytes(IntPtr? addy, byte[] value, bool isProtected = false)
+        {
+            return WriteData(addy, value, isProtected);
         }
 
-        public bool WriteBytes(Pointer? ptr, byte[] value, bool isProtected)
+        public bool WriteFloat(Pointer? ptr, float value, bool isProtected = false)
+        { 
+        return WriteFloat(ResolvePointer(ptr), value, isProtected);
+        }
+        public bool WriteFloat(IntPtr? addy, float value, bool isProtected = false)
         {
-            return WriteData(ptr, value, isProtected);
+            return WriteData(addy, BitConverter.GetBytes(value), isProtected);
         }
 
-        public bool WriteFloat(Pointer? ptr, float value, bool isProtected)
+        public bool WriteDouble(Pointer? ptr, double value, bool isProtected = false)
         {
-            return WriteData(ptr, BitConverter.GetBytes(value), isProtected);
+            return WriteDouble(ResolvePointer(ptr), value, isProtected);
+        }
+        public bool WriteDouble(IntPtr? addy, double value, bool isProtected = false)
+        {
+            return WriteData(addy, BitConverter.GetBytes(value), isProtected);
         }
 
-        public bool WriteDouble(Pointer? ptr, double value, bool isProtected)
-        {
-            return WriteData(ptr, BitConverter.GetBytes(value), isProtected);
+        public bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected = false, bool unicode = false)
+        { 
+        return WriteString(ResolvePointer(ptr), stringtowrite, isProtected, unicode);
         }
-
-        public bool WriteString(Pointer? ptr, string stringtowrite, bool isProtected, bool unicode)
+        public bool WriteString(IntPtr? addy, string stringtowrite, bool isProtected = false, bool unicode = false)
         {
             Encoding encoding = unicode ? ASCIIEncoding.Unicode : ASCIIEncoding.ASCII;
-            return WriteData(ptr, encoding.GetBytes(stringtowrite), isProtected);
+            return WriteData(addy, encoding.GetBytes(stringtowrite), isProtected);
         }
     }
 }

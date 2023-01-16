@@ -22,7 +22,7 @@ namespace BurntMemory
 
             BreakpointList = new();
 
-            Events.ATTACH_EVENT += new EventHandler(Debugger_HandleAttach);
+            Events.ATTACH_EVENT += new EventHandler<Events.AttachedEventArgs>(Debugger_HandleAttach);
             Events.DEATTACH_EVENT += new EventHandler(Debugger_HandleDetach);
             Events.EXTERNAL_PROCESS_CLOSED_EVENT += new EventHandler(GracefullyCloseDebugger);
 

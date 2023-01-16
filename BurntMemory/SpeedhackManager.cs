@@ -1,30 +1,38 @@
-﻿namespace BurntMemory
+﻿using System.Diagnostics;
+namespace BurntMemory
 {
     public class SpeedhackManager
     {
         private AttachState _attachState;
         private ReadWrite _readWrite;
-        private DLLInjector _injector;
 
-        public SpeedhackManager(AttachState attachState, ReadWrite readWrite, DLLInjector injector)
+
+        public SpeedhackManager(AttachState attachState, ReadWrite readWrite)
         {
             _attachState = attachState;
             _readWrite = readWrite;
-            _injector = injector;
+
         }
 
         private IntPtr? GetSpeedhackAddress()
         {
-            IntPtr? address = null;
-            _attachState.EvaluateModules();
-            foreach (KeyValuePair<string, IntPtr?> kv in _attachState.modules)
+            try
             {
-                if (kv.Key == "SpeedHack.dll")
+                IntPtr? address = null;
+                //_attachState.EvaluateModules();
+                foreach (ProcessModule module in Process.GetProcessById((int)_attachState.ProcessID).Modules)
                 {
-                    address = kv.Value;
+                    if (module.ModuleName == "SpeedHack.dll")
+                    {
+                        address = module.BaseAddress;
+                    }
                 }
+                return address;
             }
-            return address;
+            catch
+            {
+                return null;
+            }
         }
 
         public void RemoveSpeedHack(object? sender, EventArgs? e) //basically same as SetSpeed but without trying to inject the dll. TODO: make this actually unload the DLL if it's in there and we're still attached.
@@ -38,7 +46,7 @@
                 if (_readWrite.WriteDouble(ptr, 1, true))
                 {
                     ptr = new ReadWrite.Pointer(address + offset_newspeedflag);
-                    _readWrite.WriteBytes(ptr, (byte)1, true);
+                    _readWrite.WriteByte(ptr, (byte)1, true);
                 }
             }
         }
@@ -48,7 +56,7 @@
             IntPtr? address = GetSpeedhackAddress();
             if (address == null)
             {
-                _injector.InjectDLL("SpeedHack.dll");
+                DLLInjector.InjectDLL("SpeedHack.dll", Process.GetProcessById((int)_attachState.ProcessID));
                 Thread.Sleep(50);
                 address = GetSpeedhackAddress();
 
@@ -63,7 +71,7 @@
             if (_readWrite.WriteDouble(ptr, speed, true))
             {
                 ptr = new ReadWrite.Pointer(address + offset_newspeedflag);
-                return _readWrite.WriteBytes(ptr, (byte)1, true);
+                return _readWrite.WriteByte(ptr, (byte)1, true);
             }
             return false;
         }

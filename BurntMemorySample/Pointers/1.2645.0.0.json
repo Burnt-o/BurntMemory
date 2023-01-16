@@ -1,0 +1,58 @@
+﻿{
+    "stateindicator": [
+        [ 0x3F66149 ],
+        [ 0x3E08BE5 ]
+    ],
+
+    "menuindicator": [
+        [ 0x3E7BAA9 ],
+        [ 0x3D1E7A9 ]
+    ],
+
+      "H1_LevelName": [
+    [ 0x03FB1FD0, 0x8, 0x2B611EC ],
+    [ 0x03E54A40, 0x8, 0x2B611EC ]
+  ],
+
+
+}
+
+
+public struct MCC
+        {
+            public static readonly ReadWrite.Pointer? SteamMenuInd;
+            public static readonly ReadWrite.Pointer? SteamStateInd;
+            public static readonly ReadWrite.Pointer? WinMenuInd;
+            public static readonly ReadWrite.Pointer? WinStateInd;
+        }
+
+        public struct General
+        { 
+        
+        }
+
+        public struct Breakpoints
+        { 
+        
+        }
+
+        public struct BoolMode
+        { 
+        
+        }
+
+
+        public static readonly ReadWrite.Pointer? Checkpoint;
+        public static readonly ReadWrite.Pointer? Coreload;
+        public static readonly ReadWrite.Pointer? Coresave;
+        public static readonly ReadWrite.Pointer? CPMessageCall;
+        public static readonly ReadWrite.Pointer? Health;
+        public static readonly ReadWrite.Pointer? Medusa;
+        public static readonly ReadWrite.Pointer? MessageTC;
+        public static readonly ReadWrite.Pointer? PlayerAddy;
+        public static readonly ReadWrite.Pointer? Revert;
+        public static readonly ReadWrite.Pointer? ShieldBreak;
+        public static readonly ReadWrite.Pointer? ShieldChip;
+        public static readonly ReadWrite.Pointer? Tickcount;
+        public static readonly ReadWrite.Pointer? ScriptState;
+        public static readonly ReadWrite.Pointer? LevelName;

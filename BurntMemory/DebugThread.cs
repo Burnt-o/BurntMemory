@@ -82,7 +82,7 @@ namespace BurntMemory
                     //foreach (Breakpoint bp in _BreakpointList)
                     foreach (var item in _debugManager.BreakpointList)
                     {
-                        if (item.Value.CCwritten == false && _readWrite.WriteBytes(new ReadWrite.Pointer(item.Key), 0xCC, true))
+                        if (item.Value.CCwritten == false && _readWrite.WriteByte(new ReadWrite.Pointer(item.Key), (byte)0xCC, true))
                         {
                             var newitem = item.Value;
                             newitem.CCwritten = true;
