@@ -448,5 +448,14 @@ namespace BurntMemory
                 #define EXCEPTION_POSSIBLE_DEADLOCK         STATUS_POSSIBLE_DEADLOCK
 
         */
+
+
+        [DllImport("ntdll.dll", PreserveSig = false)]
+        public static extern void NtSuspendProcess(IntPtr processHandle);
+
+        [DllImport("ntdll.dll", PreserveSig = false, SetLastError = true)]
+        public static extern void NtResumeProcess(IntPtr processHandle);
+
+
     }
 }
